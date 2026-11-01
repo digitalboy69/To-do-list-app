@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -264,6 +265,9 @@ private fun FilterTab(label: String, selected: Boolean, onClick: () -> Unit) {
 
     Column(
         modifier = Modifier
+            // Size the tab to its label, so the underline (fillMaxWidth) matches the text
+            // instead of stretching across the row and pushing the other tabs off screen.
+            .width(IntrinsicSize.Max)
             .clip(RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
     ) {
