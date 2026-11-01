@@ -10,7 +10,7 @@ A native Android (Kotlin + Jetpack Compose) port of the dark "TaskMaster" web pr
 
 ## Download the app
 
-Get the latest APK from the **[Releases page](https://github.com/digitalboy69/To-do-list-app/releases/latest)**: open it, tap `TaskMaster-debug.apk` under *Assets*, and install it (allow "install unknown apps" when asked).
+Get the latest APK from the **[Releases page](https://github.com/digitalboy69/To-do-list-app/releases/latest)**: open it, tap `TaskMaster.apk` under *Assets*, and install it (allow "install unknown apps" when asked).
 
 ## Floating bubble
 
@@ -25,7 +25,7 @@ The bubble shows how many tasks are pending, comes back after a reboot if you le
 
 1. Push this project to a GitHub repo (branch `main`).
 2. Open the **Actions** tab. The **Build APK** workflow runs on every push (or start it with **Run workflow**).
-3. When it finishes, open the run and download **TaskMaster-debug-apk** from *Artifacts*. Unzip it and install `TaskMaster-debug.apk` on your phone (allow "install unknown apps").
+3. When it finishes, open the run and download **TaskMaster-apk** from *Artifacts*. Unzip it and install `TaskMaster.apk` on your phone (allow "install unknown apps").
 
 To publish the APK on the **Releases** page, push a tag:
 
@@ -64,6 +64,7 @@ app/src/main/java/com/taskmaster/app/
 
 ## Notes
 
-- The workflow produces a **debug** APK, which is signed with the standard Android debug key and installs fine on any phone. For Play Store distribution you would add a release signing config with your own keystore (kept in GitHub Secrets).
+- The workflow builds a signed **release** APK with R8 (code and resource shrinking). By default it signs with a throwaway key made fresh on each run, so installing a newer build over an older one needs an uninstall first. To keep one signature across versions, add the repo secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD` (Settings > Secrets and variables > Actions); the workflow then uses that key.
+- Because the app is installed outside the Play Store and asks to draw over other apps, Google Play Protect may warn about it. Tap **Install anyway** (or turn off *Scan apps with Play Protect* briefly).
 - The prototype used the Poppins font. This app uses the system font to avoid bundling font files; to match exactly, drop the Poppins `.ttf` files into `app/src/main/res/font/` and reference them in a `FontFamily`.
 - Package name / app id: `com.taskmaster.app` (change it in `app/build.gradle.kts` and move the source folders if you want your own).

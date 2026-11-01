@@ -35,23 +35,59 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+      # Signing key for the release APK. If you add the repo secrets KEYSTORE_BASE64,
+      # KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD, that key is used (same signature every
+      # release, so updates install over each other). Otherwise a throwaway key is generated
+      # for this run only; nothing secret is ever stored in the repo.
+      - name: Prepare signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          SECRET_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SECRET_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SECRET_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          KS="$RUNNER_TEMP/release.jks"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$KS"
+            STORE_PASS="$SECRET_STORE_PASSWORD"
+            ALIAS="$SECRET_KEY_ALIAS"
+            KEY_PASS="$SECRET_KEY_PASSWORD"
+          else
+            STORE_PASS="$(openssl rand -hex 16)"
+            ALIAS="taskmaster"
+            KEY_PASS="$STORE_PASS"
+            keytool -genkeypair -keystore "$KS" -alias "$ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$STORE_PASS" -keypass "$KEY_PASS" \
+              -dname "CN=TaskMaster, O=TaskMaster, C=IN"
+          fi
+          echo "::add-mask::$STORE_PASS"
+          echo "::add-mask::$KEY_PASS"
+          {
+            echo "KEYSTORE_PATH=$KS"
+            echo "KEYSTORE_PASSWORD=$STORE_PASS"
+            echo "KEY_ALIAS=$ALIAS"
+            echo "KEY_PASSWORD=$KEY_PASS"
+          } >> "$GITHUB_ENV"
+
+      # Release build: signed, with R8 code shrinking and resource shrinking turned on.
+      - name: Build release APK
+        run: gradle assembleRelease --stacktrace
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk TaskMaster-debug.apk
+        run: cp app/build/outputs/apk/release/app-release.apk TaskMaster.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TaskMaster-debug-apk
-          path: TaskMaster-debug.apk
+          name: TaskMaster-apk
+          path: TaskMaster.apk
           if-no-files-found: error
 
-      # Pushing a tag like v1.0.0 also publishes the APK on the GitHub Releases page.
+      # Pushing a tag like v1.0.1 also publishes the APK on the GitHub Releases page.
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: TaskMaster-debug.apk
+          files: TaskMaster.apk
           generate_release_notes: true

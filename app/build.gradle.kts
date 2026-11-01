@@ -12,13 +12,32 @@ android {
         applicationId = "com.taskmaster.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
+    }
+
+    // The release key comes from environment variables (set by the GitHub workflow), so no
+    // key or password is stored in the repo. Without them (a local build) it uses the debug key.
+    val releaseKeystore: String? = System.getenv("KEYSTORE_PATH")
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8: shrink code, obfuscate names, and drop unused resources.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName(
+                if (releaseKeystore != null) "release" else "debug"
+            )
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
