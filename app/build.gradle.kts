@@ -12,8 +12,8 @@ android {
         applicationId = "com.taskmaster.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = (project.findProperty("appVersionCode") as String?)?.toIntOrNull() ?: 2
+        versionName = (project.findProperty("appVersionName") as String?) ?: "1.0.1"
     }
 
     // The release key comes from environment variables (set by the GitHub workflow), so no

@@ -151,6 +151,9 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
                 onCreate = { title, desc, priority -> vm.addTask(title, desc, priority) }
             )
         }
+
+        // Asks to update when a newer release is published on GitHub.
+        UpdatePrompt()
     }
 }
 
@@ -315,8 +318,7 @@ private fun TaskList(
             TaskItem(
                 task = task,
                 onToggle = { onToggle(task.id) },
-                onDelete = { onDelete(task.id) },
-                modifier = Modifier.animateItem()
+                onDelete = { onDelete(task.id) }
             )
         }
     }

@@ -3,7 +3,6 @@ name: Build APK
 on:
   push:
     branches: [main, master]
-    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -35,44 +34,35 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      # Signing key for the release APK. If you add the repo secrets KEYSTORE_BASE64,
-      # KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD, that key is used (same signature every
-      # release, so updates install over each other). Otherwise a throwaway key is generated
-      # for this run only; nothing secret is ever stored in the repo.
+      # Fixed signing key, kept right here on purpose (personal sideloaded app). Every build is
+      # signed the same way, which is what lets an update install over the previous version.
+      # To use your own private key instead, add the repo secrets KEYSTORE_BASE64,
+      # KEYSTORE_PASSWORD and KEY_ALIAS; they override the key below.
       - name: Prepare signing key
         env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          SECRET_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          DEFAULT_KEYSTORE_BASE64: "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"
+          DEFAULT_KEYSTORE_PASSWORD: "14a99d0b7bfc86ee312e6b7b"
+          DEFAULT_KEY_ALIAS: "taskmaster"
+          SECRET_KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          SECRET_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SECRET_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          SECRET_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           KS="$RUNNER_TEMP/release.jks"
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$KS"
-            STORE_PASS="$SECRET_STORE_PASSWORD"
-            ALIAS="$SECRET_KEY_ALIAS"
-            KEY_PASS="$SECRET_KEY_PASSWORD"
-          else
-            STORE_PASS="$(openssl rand -hex 16)"
-            ALIAS="taskmaster"
-            KEY_PASS="$STORE_PASS"
-            keytool -genkeypair -keystore "$KS" -alias "$ALIAS" \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass "$STORE_PASS" -keypass "$KEY_PASS" \
-              -dname "CN=TaskMaster, O=TaskMaster, C=IN"
-          fi
-          echo "::add-mask::$STORE_PASS"
-          echo "::add-mask::$KEY_PASS"
+          echo "${SECRET_KEYSTORE_BASE64:-$DEFAULT_KEYSTORE_BASE64}" | base64 -d > "$KS"
           {
             echo "KEYSTORE_PATH=$KS"
-            echo "KEYSTORE_PASSWORD=$STORE_PASS"
-            echo "KEY_ALIAS=$ALIAS"
-            echo "KEY_PASSWORD=$KEY_PASS"
+            echo "KEYSTORE_PASSWORD=${SECRET_KEYSTORE_PASSWORD:-$DEFAULT_KEYSTORE_PASSWORD}"
+            echo "KEY_ALIAS=${SECRET_KEY_ALIAS:-$DEFAULT_KEY_ALIAS}"
+            echo "KEY_PASSWORD=${SECRET_KEYSTORE_PASSWORD:-$DEFAULT_KEYSTORE_PASSWORD}"
           } >> "$GITHUB_ENV"
 
       # Release build: signed, with R8 code shrinking and resource shrinking turned on.
+      # Every run gets its own version (1.0.<run number>) so the app can tell a build is newer.
       - name: Build release APK
-        run: gradle assembleRelease --stacktrace
+        run: >
+          gradle assembleRelease --stacktrace
+          -PappVersionName=1.0.${{ github.run_number }}
+          -PappVersionCode=${{ github.run_number }}
 
       - name: Rename APK
         run: cp app/build/outputs/apk/release/app-release.apk TaskMaster.apk
@@ -84,10 +74,15 @@ jobs:
           path: TaskMaster.apk
           if-no-files-found: error
 
-      # Pushing a tag like v1.0.1 also publishes the APK on the GitHub Releases page.
+      # Every push to main publishes a new release (v1.0.<run number>) with the APK attached.
+      # The app checks the latest release on launch and offers the update.
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: TaskMaster 1.0.${{ github.run_number }}
           files: TaskMaster.apk
           generate_release_notes: true
+          make_latest: true
