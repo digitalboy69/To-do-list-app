@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TaskMaster</string>
+    <string name="bubble_channel_name">Floating bubble</string>
+    <string name="bubble_notification_title">TaskMaster bubble is on</string>
+    <string name="bubble_notification_text">Tap the bubble to add or tick tasks</string>
+    <string name="bubble_notification_turn_off">Turn off</string>
 </resources>

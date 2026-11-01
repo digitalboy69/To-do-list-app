@@ -8,15 +8,15 @@ import androidx.lifecycle.AndroidViewModel
 import com.taskmaster.app.data.Priority
 import com.taskmaster.app.data.Task
 import com.taskmaster.app.data.TaskFilter
-import com.taskmaster.app.data.TaskRepository
-import java.util.UUID
+import com.taskmaster.app.data.TaskStore
 
 class TaskViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val repository = TaskRepository(app)
+    // Shared with the floating bubble popup, so both always show the same tasks.
+    private val store = TaskStore.get(app)
 
-    var tasks by mutableStateOf(repository.load())
-        private set
+    val tasks: List<Task>
+        get() = store.tasks
 
     var filter by mutableStateOf(TaskFilter.ALL)
         private set
@@ -33,31 +33,10 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Returns false when the title is blank (nothing is created). */
-    fun addTask(title: String, desc: String, priority: Priority): Boolean {
-        val cleanTitle = title.trim()
-        if (cleanTitle.isEmpty()) return false
-        val task = Task(
-            id = UUID.randomUUID().toString(),
-            title = cleanTitle,
-            desc = desc.trim(),
-            priority = priority,
-            completed = false,
-            createdAt = System.currentTimeMillis()
-        )
-        update(listOf(task) + tasks)
-        return true
-    }
+    fun addTask(title: String, desc: String, priority: Priority): Boolean =
+        store.add(title, desc, priority)
 
-    fun toggleTask(id: String) {
-        update(tasks.map { if (it.id == id) it.copy(completed = !it.completed) else it })
-    }
+    fun toggleTask(id: String) = store.toggle(id)
 
-    fun deleteTask(id: String) {
-        update(tasks.filterNot { it.id == id })
-    }
-
-    private fun update(newTasks: List<Task>) {
-        tasks = newTasks
-        repository.save(newTasks)
-    }
+    fun deleteTask(id: String) = store.delete(id)
 }

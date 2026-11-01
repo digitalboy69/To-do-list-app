@@ -6,6 +6,16 @@ A native Android (Kotlin + Jetpack Compose) port of the dark "TaskMaster" web pr
 - Check tasks off, delete them, filter by All / Pending / Completed
 - Tasks are saved on the device and survive app restarts
 - Same dark/indigo-purple look, with the "push back" effect behind the New Task sheet
+- **Floating bubble**: an always-on-screen icon you can drag anywhere. Tap it to open a popup where you add tasks and tick them off, without leaving the app you're in
+
+## Floating bubble
+
+1. Open TaskMaster and turn on the **Floating bubble** switch below the title.
+2. The first time, Android asks for **Display over other apps** (and notifications on Android 13+). Allow it and come back.
+3. The bubble appears on screen. Drag it anywhere (it snaps to the nearest edge), tap it to open the quick popup, and tap **Open TaskMaster** inside the popup to jump to the full app.
+4. Turn it off with the same switch, or with **Turn off** on the small "bubble is on" notification.
+
+The bubble shows how many tasks are pending, comes back after a reboot if you left it on, and shares its task list with the app, so both always match.
 
 ## Build the APK with GitHub Actions
 
@@ -38,6 +48,12 @@ app/src/main/java/com/taskmaster/app/
   TaskViewModel.kt         state + actions (add / toggle / delete / filter)
   data/Task.kt             Task model, Priority, TaskFilter
   data/TaskRepository.kt   JSON persistence in SharedPreferences
+  data/TaskStore.kt        shared task list used by the app and the bubble
+  overlay/OverlayService.kt   foreground service that draws the bubble and popup
+  overlay/QuickTasksPopup.kt  bubble + popup UI
+  overlay/OverlaySettings.kt  on/off state and bubble position
+  overlay/BootReceiver.kt     restores the bubble after reboot
+  ui/BubbleToggle.kt       on/off switch and permission flow
   ui/TaskApp.kt            all screens and components
   ui/theme/Theme.kt        colors, gradient, theme
 ```

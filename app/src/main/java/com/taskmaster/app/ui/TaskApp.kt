@@ -102,7 +102,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private fun Priority.color(): Color = when (this) {
+internal fun Priority.color(): Color = when (this) {
     Priority.HIGH -> HighPri
     Priority.MEDIUM -> MedPri
     Priority.LOW -> LowPri
@@ -166,6 +166,7 @@ private fun MainScreen(vm: TaskViewModel, onAddClick: () -> Unit) {
             .statusBarsPadding()
     ) {
         Header(onAddClick = onAddClick)
+        BubbleToggle()
         Filters(selected = vm.filter, onSelect = vm::setFilter)
         TaskList(
             tasks = vm.visibleTasks,
@@ -441,7 +442,7 @@ private fun TaskItem(
 }
 
 @Composable
-private fun Checkbox(checked: Boolean, onClick: () -> Unit) {
+internal fun Checkbox(checked: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(8.dp)
     val iconProgress by animateFloatAsState(
         targetValue = if (checked) 1f else 0f,
@@ -669,7 +670,7 @@ private fun FieldGroup(label: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun SheetTextField(
+internal fun SheetTextField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
@@ -703,7 +704,7 @@ private fun SheetTextField(
 }
 
 @Composable
-private fun PriorityButton(
+internal fun PriorityButton(
     priority: Priority,
     selected: Boolean,
     onClick: () -> Unit,
