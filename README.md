@@ -28,7 +28,7 @@ When the app opens it checks the latest GitHub Release. If a newer version exist
 3. The bubble appears on screen. Drag it anywhere (it snaps to the nearest edge), tap it to open the quick popup, and tap **Open TaskMaster** inside the popup to jump to the full app.
 4. Turn it off with the same switch, or with **Turn off** on the small "bubble is on" notification.
 
-The bubble shows how many tasks are pending, comes back after a reboot if you left it on, and shares its task list with the app, so both always match.
+After a couple of idle seconds the bubble tucks into the screen edge, faded and mostly hidden, leaving just a sliver to tap; touching it slides it back out at full colour. It shows how many tasks are pending, comes back after a reboot if you left it on, and shares its task list with the app, so both always match.
 
 ## Build the APK with GitHub Actions
 

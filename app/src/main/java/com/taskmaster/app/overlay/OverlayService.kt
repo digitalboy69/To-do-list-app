@@ -12,6 +12,8 @@ import android.content.pm.ServiceInfo
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.IBinder
 import android.view.Gravity
 import android.view.KeyEvent
@@ -57,6 +59,12 @@ class OverlayService : Service() {
     private var popupView: View? = null
     private var snapAnimator: ValueAnimator? = null
 
+    // After a few idle seconds the bubble tucks into the screen edge, mostly hidden and faded,
+    // leaving just enough showing to tap. Touching it brings it back at full colour.
+    private val handler = Handler(Looper.getMainLooper())
+    private val dockRunnable = Runnable { dock() }
+    private var isDocked = false
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -93,12 +101,16 @@ class OverlayService : Service() {
         super.onConfigurationChanged(newConfig)
         // Keep the bubble on the screen (and on its edge) after rotation.
         val params = bubbleParams ?: return
-        params.x = if (OverlaySettings.isOnRightSide(this)) maxBubbleX() else 0
+        params.x = edgeX(OverlaySettings.isOnRightSide(this))
         params.y = params.y.coerceIn(0, maxBubbleY())
         updateBubbleLayout()
+        bubbleView?.alpha = 1f
+        isDocked = false
+        scheduleDock()
     }
 
     override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
         snapAnimator?.cancel()
         removeView(popupView)
         popupView = null
@@ -122,11 +134,13 @@ class OverlayService : Service() {
             size,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                // Lets the window slide partly off the screen when it tucks into the edge.
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = if (OverlaySettings.isOnRightSide(this@OverlayService)) maxBubbleX() else 0
+            x = edgeX(OverlaySettings.isOnRightSide(this@OverlayService))
             val savedY = OverlaySettings.savedY(this@OverlayService)
             y = (if (savedY >= 0) savedY else screenHeight() / 3).coerceIn(0, maxBubbleY())
         }
@@ -142,6 +156,7 @@ class OverlayService : Service() {
         bubbleParams = params
         bubbleView = root
         windowManager.addView(root, params)
+        scheduleDock()
     }
 
     /** Receives all touches itself, so dragging and tapping never reach the Compose child. */
@@ -159,10 +174,17 @@ class OverlayService : Service() {
             val params = bubbleParams ?: return false
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    handler.removeCallbacks(dockRunnable)
                     snapAnimator?.cancel()
+                    if (isDocked) {
+                        // Touching a tucked-away bubble brings it fully back, in full colour.
+                        undock()
+                        startX = edgeX(params.x + dp(BUBBLE_WINDOW_DP) / 2 > screenWidth() / 2)
+                    } else {
+                        startX = params.x
+                    }
                     downRawX = event.rawX
                     downRawY = event.rawY
-                    startX = params.x
                     startY = params.y
                     dragging = false
                 }
@@ -170,7 +192,10 @@ class OverlayService : Service() {
                 MotionEvent.ACTION_MOVE -> {
                     val dx = event.rawX - downRawX
                     val dy = event.rawY - downRawY
-                    if (!dragging && hypot(dx, dy) > touchSlop) dragging = true
+                    if (!dragging && hypot(dx, dy) > touchSlop) {
+                        dragging = true
+                        snapAnimator?.cancel()
+                    }
                     if (dragging) {
                         params.x = (startX + dx).toInt().coerceIn(0, maxBubbleX())
                         params.y = (startY + dy).toInt().coerceIn(0, maxBubbleY())
@@ -180,6 +205,7 @@ class OverlayService : Service() {
 
                 MotionEvent.ACTION_UP -> {
                     if (dragging) snapToEdge() else performClick()
+                    scheduleDock()
                 }
             }
             return true
@@ -203,6 +229,55 @@ class OverlayService : Service() {
             }
             start()
         }
+    }
+
+    /** Window x that puts the bubble flush against the left or right edge. */
+    private fun edgeX(right: Boolean): Int = if (right) maxBubbleX() else 0
+
+    /** Window x that leaves only a small slice of the bubble showing at the edge. */
+    private fun peekX(right: Boolean): Int {
+        val inset = dp((BUBBLE_WINDOW_DP - BUBBLE_DP) / 2)
+        return if (right) {
+            screenWidth() - inset - dp(PEEK_VISIBLE_DP)
+        } else {
+            -(dp(BUBBLE_WINDOW_DP) - inset - dp(PEEK_VISIBLE_DP))
+        }
+    }
+
+    private fun animateBubble(toX: Int, toAlpha: Float) {
+        val params = bubbleParams ?: return
+        val view = bubbleView ?: return
+        snapAnimator?.cancel()
+        view.animate().alpha(toAlpha).setDuration(220).start()
+        snapAnimator = ValueAnimator.ofInt(params.x, toX).apply {
+            duration = 220
+            addUpdateListener {
+                params.x = it.animatedValue as Int
+                updateBubbleLayout()
+            }
+            start()
+        }
+    }
+
+    private fun onRightHalf(): Boolean {
+        val params = bubbleParams ?: return true
+        return params.x + dp(BUBBLE_WINDOW_DP) / 2 > screenWidth() / 2
+    }
+
+    private fun dock() {
+        if (popupView != null || bubbleParams == null) return
+        isDocked = true
+        animateBubble(peekX(onRightHalf()), DOCKED_ALPHA)
+    }
+
+    private fun undock() {
+        isDocked = false
+        animateBubble(edgeX(onRightHalf()), 1f)
+    }
+
+    private fun scheduleDock() {
+        handler.removeCallbacks(dockRunnable)
+        handler.postDelayed(dockRunnable, DOCK_DELAY_MS)
     }
 
     private fun updateBubbleLayout() {
@@ -247,6 +322,7 @@ class OverlayService : Service() {
         popupView = root
         windowManager.addView(root, params)
         // Only one of the two is visible at a time.
+        handler.removeCallbacks(dockRunnable)
         bubbleView?.visibility = View.GONE
     }
 
@@ -255,6 +331,7 @@ class OverlayService : Service() {
         popupView = null
         removeView(view)
         bubbleView?.visibility = View.VISIBLE
+        scheduleDock()
     }
 
     private fun openApp() {
@@ -381,6 +458,10 @@ class OverlayService : Service() {
         private const val CHANNEL_ID = "taskmaster_bubble"
         private const val NOTIFICATION_ID = 1001
         private const val ACTION_STOP = "com.taskmaster.app.overlay.STOP"
+
+        private const val DOCK_DELAY_MS = 2500L
+        private const val DOCKED_ALPHA = 0.5f
+        private const val PEEK_VISIBLE_DP = 22
 
         fun start(context: Context) {
             ContextCompat.startForegroundService(
