@@ -8,6 +8,10 @@ A native Android (Kotlin + Jetpack Compose) port of the dark "TaskMaster" web pr
 - Same dark/indigo-purple look, with the "push back" effect behind the New Task sheet
 - **Floating bubble**: an always-on-screen icon you can drag anywhere. Tap it to open a popup where you add tasks and tick them off, without leaving the app you're in
 
+## Download the app
+
+Get the latest APK from the **[Releases page](https://github.com/digitalboy69/To-do-list-app/releases/latest)**: open it, tap `TaskMaster-debug.apk` under *Assets*, and install it (allow "install unknown apps" when asked).
+
 ## Floating bubble
 
 1. Open TaskMaster and turn on the **Floating bubble** switch below the title.
