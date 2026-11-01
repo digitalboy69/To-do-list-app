@@ -14,7 +14,7 @@ Get the latest APK from the **[Releases page](https://github.com/digitalboy69/To
 
 ## In-app updates
 
-When the app opens it checks the latest GitHub Release. If a newer version exists, it asks **Update now** or **Later**. *Update now* downloads the APK inside the app (with a progress bar) and opens the Android installer; the first time, Android asks you to allow TaskMaster to install updates. *Later* hides the prompt until you open the app again.
+When the app opens it checks the latest GitHub Release. If a newer version exists, it asks **Update now** or **Later**. *Update now* downloads the APK inside the app (with a progress bar) and opens the Android installer; the first time, Android asks you to allow TaskMaster to install updates. *Later* hides the prompt until you open the app again. You can also tap **Check** in the card under the bubble switch at any time; it shows the installed version and tells you if you are up to date.
 
 ## Floating bubble
 
@@ -57,7 +57,7 @@ app/src/main/java/com/taskmaster/app/
   overlay/OverlaySettings.kt  on/off state and bubble position
   overlay/BootReceiver.kt     restores the bubble after reboot
   ui/BubbleToggle.kt       on/off switch and permission flow
-  ui/UpdatePrompt.kt       "Update available" dialog
+  ui/UpdateUi.kt           "Check" card and "Update available" dialog
   update/UpdateChecker.kt  checks GitHub releases, downloads and installs the APK
   ui/TaskApp.kt            all screens and components
   ui/theme/Theme.kt        colors, gradient, theme

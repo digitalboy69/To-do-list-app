@@ -116,6 +116,9 @@ internal fun Priority.color(): Color = when (this) {
 fun TaskApp(vm: TaskViewModel = viewModel()) {
     var showSheet by rememberSaveable { mutableStateOf(false) }
 
+    val updates = rememberUpdateState()
+    LaunchedEffect(Unit) { updates.checkOnLaunch() }
+
     // iOS-style "push back" of the main screen while the sheet is open.
     val push by animateFloatAsState(
         targetValue = if (showSheet) 1f else 0f,
@@ -142,7 +145,7 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
             shape = RoundedCornerShape((30f * push).dp),
             color = SurfaceMain
         ) {
-            MainScreen(vm = vm, onAddClick = { showSheet = true })
+            MainScreen(vm = vm, updates = updates, onAddClick = { showSheet = true })
         }
 
         if (showSheet) {
@@ -153,7 +156,7 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
         }
 
         // Asks to update when a newer release is published on GitHub.
-        UpdatePrompt()
+        UpdateDialog(updates)
     }
 }
 
@@ -162,7 +165,7 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
 /* ------------------------------------------------------------------ */
 
 @Composable
-private fun MainScreen(vm: TaskViewModel, onAddClick: () -> Unit) {
+private fun MainScreen(vm: TaskViewModel, updates: UpdateState, onAddClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -170,6 +173,7 @@ private fun MainScreen(vm: TaskViewModel, onAddClick: () -> Unit) {
     ) {
         Header(onAddClick = onAddClick)
         BubbleToggle()
+        UpdateRow(updates)
         Filters(selected = vm.filter, onSelect = vm::selectFilter)
         TaskList(
             tasks = vm.visibleTasks,

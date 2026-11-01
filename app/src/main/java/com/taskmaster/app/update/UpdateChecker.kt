@@ -16,6 +16,12 @@ import java.net.URL
 /** A newer release found on GitHub. */
 data class UpdateInfo(val version: String, val apkUrl: String)
 
+sealed interface UpdateResult {
+    data class Available(val info: UpdateInfo) : UpdateResult
+    data object UpToDate : UpdateResult
+    data object Failed : UpdateResult
+}
+
 /**
  * Checks the repo's latest GitHub release, downloads its APK and hands it to the system installer.
  * The workflow publishes a release (v1.0.N + TaskMaster.apk) for every push to main.
@@ -31,8 +37,8 @@ object UpdateChecker {
     fun currentVersion(context: Context): String =
         context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0"
 
-    /** Returns the newer release, or null when up to date or when the check fails (offline etc.). */
-    suspend fun check(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
+    /** Looks up the latest GitHub release and says whether it is newer than the installed app. */
+    suspend fun check(context: Context): UpdateResult = withContext(Dispatchers.IO) {
         try {
             val connection = URL(LATEST_RELEASE_URL).openConnection() as HttpURLConnection
             try {
@@ -41,31 +47,33 @@ object UpdateChecker {
                 connection.setRequestProperty("Accept", "application/vnd.github+json")
                 connection.setRequestProperty("User-Agent", USER_AGENT)
                 if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-                    return@withContext null
+                    return@withContext UpdateResult.Failed
                 }
 
                 val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
                 val tag = json.optString("tag_name")
-                if (tag.isEmpty() || !isNewer(tag, currentVersion(context))) {
-                    return@withContext null
-                }
+                if (tag.isEmpty()) return@withContext UpdateResult.Failed
+                if (!isNewer(tag, currentVersion(context))) return@withContext UpdateResult.UpToDate
 
-                val assets = json.optJSONArray("assets") ?: return@withContext null
+                val assets = json.optJSONArray("assets") ?: return@withContext UpdateResult.UpToDate
                 for (i in 0 until assets.length()) {
                     val asset = assets.getJSONObject(i)
                     if (asset.optString("name") == APK_NAME) {
                         val url = asset.optString("browser_download_url")
                         if (url.isNotEmpty()) {
-                            return@withContext UpdateInfo(tag.removePrefix("v"), url)
+                            return@withContext UpdateResult.Available(
+                                UpdateInfo(tag.removePrefix("v"), url)
+                            )
                         }
                     }
                 }
-                null
+                // Newer release exists but its APK is not attached yet.
+                UpdateResult.UpToDate
             } finally {
                 connection.disconnect()
             }
         } catch (e: Exception) {
-            null
+            UpdateResult.Failed
         }
     }
 
