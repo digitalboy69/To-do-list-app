@@ -167,7 +167,7 @@ private fun MainScreen(vm: TaskViewModel, onAddClick: () -> Unit) {
     ) {
         Header(onAddClick = onAddClick)
         BubbleToggle()
-        Filters(selected = vm.filter, onSelect = vm::setFilter)
+        Filters(selected = vm.filter, onSelect = vm::selectFilter)
         TaskList(
             tasks = vm.visibleTasks,
             onToggle = vm::toggleTask,

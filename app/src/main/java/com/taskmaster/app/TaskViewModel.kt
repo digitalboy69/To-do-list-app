@@ -28,7 +28,7 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
             TaskFilter.COMPLETED -> tasks.filter { it.completed }
         }
 
-    fun setFilter(newFilter: TaskFilter) {
+    fun selectFilter(newFilter: TaskFilter) {
         filter = newFilter
     }
 
