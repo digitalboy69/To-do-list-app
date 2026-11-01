@@ -22,7 +22,8 @@ class TaskRepository(context: Context) {
                     desc = o.optString("desc", ""),
                     priority = Priority.fromName(o.optString("priority", "medium")),
                     completed = o.optBoolean("completed", false),
-                    createdAt = o.optLong("createdAt", 0L)
+                    createdAt = o.optLong("createdAt", 0L),
+                    dueDate = o.optLong("dueDate", -1L).takeIf { it >= 0L }
                 )
             }
         } catch (e: Exception) {
@@ -41,6 +42,7 @@ class TaskRepository(context: Context) {
                     put("priority", t.priority.name.lowercase())
                     put("completed", t.completed)
                     put("createdAt", t.createdAt)
+                    if (t.dueDate != null) put("dueDate", t.dueDate)
                 }
             )
         }

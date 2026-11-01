@@ -6,6 +6,11 @@ A native Android (Kotlin + Jetpack Compose) port of the dark "TaskMaster" web pr
 - Check tasks off, delete them, filter by All / Pending / Completed
 - Tasks are saved on the device and survive app restarts
 - Same dark/indigo-purple look, with the "push back" effect behind the New Task sheet
+- **Due dates** (Today / Tomorrow / Next week), shown on each card and in red once overdue
+- **Edit** any task by tapping it, **search**, and **sort** by newest, priority or due date
+- **Progress card** with an animated bar, plus a confetti burst when you finish everything
+- **Settings** page (gear icon): floating bubble on/off, check for updates, sort order, clear completed
+- Animated **permission guide** that opens the exact settings page, so the only thing left is flipping the switch
 - **Floating bubble**: an always-on-screen icon you can drag anywhere. Tap it to open a popup where you add tasks and tick them off, without leaving the app you're in
 
 ## Download the app
@@ -14,12 +19,12 @@ Get the latest APK from the **[Releases page](https://github.com/digitalboy69/To
 
 ## In-app updates
 
-When the app opens it checks the latest GitHub Release. If a newer version exists, it asks **Update now** or **Later**. *Update now* downloads the APK inside the app (with a progress bar) and opens the Android installer; the first time, Android asks you to allow TaskMaster to install updates. *Later* hides the prompt until you open the app again. You can also tap **Check** in the card under the bubble switch at any time; it shows the installed version and tells you if you are up to date.
+When the app opens it checks the latest GitHub Release. If a newer version exists, it asks **Update now** or **Later**. *Update now* downloads the APK inside the app (with a progress bar) and opens the Android installer; the first time, Android asks you to allow TaskMaster to install updates. *Later* hides the prompt until you open the app again. You can also tap **Check** under **Settings > App updates** at any time; it shows the installed version and tells you if you are up to date.
 
 ## Floating bubble
 
-1. Open TaskMaster and turn on the **Floating bubble** switch below the title.
-2. The first time, Android asks for **Display over other apps** (and notifications on Android 13+). Allow it and come back.
+1. Open TaskMaster, tap the gear icon, and turn on the **Floating bubble** switch.
+2. The first time, a short animated guide explains the permission and **Open settings** takes you straight to TaskMaster's page. Flip the switch, press back, and the bubble starts.
 3. The bubble appears on screen. Drag it anywhere (it snaps to the nearest edge), tap it to open the quick popup, and tap **Open TaskMaster** inside the popup to jump to the full app.
 4. Turn it off with the same switch, or with **Turn off** on the small "bubble is on" notification.
 
@@ -58,6 +63,10 @@ app/src/main/java/com/taskmaster/app/
   overlay/BootReceiver.kt     restores the bubble after reboot
   ui/BubbleToggle.kt       on/off switch and permission flow
   ui/UpdateUi.kt           "Check" card and "Update available" dialog
+  ui/SettingsScreen.kt     settings page
+  ui/PermissionGuide.kt    animated permission guide
+  ui/HomeWidgets.kt        progress card, search, due-date chips
+  ui/Confetti.kt           confetti burst
   update/UpdateChecker.kt  checks GitHub releases, downloads and installs the APK
   ui/TaskApp.kt            all screens and components
   ui/theme/Theme.kt        colors, gradient, theme

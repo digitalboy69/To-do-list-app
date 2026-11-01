@@ -21,7 +21,7 @@ class TaskStore private constructor(context: Context) {
         private set
 
     /** Returns false when the title is blank (nothing is created). */
-    fun add(title: String, desc: String, priority: Priority): Boolean {
+    fun add(title: String, desc: String, priority: Priority, dueDate: Long? = null): Boolean {
         val cleanTitle = title.trim()
         if (cleanTitle.isEmpty()) return false
         val task = Task(
@@ -30,10 +30,40 @@ class TaskStore private constructor(context: Context) {
             desc = desc.trim(),
             priority = priority,
             completed = false,
-            createdAt = System.currentTimeMillis()
+            createdAt = System.currentTimeMillis(),
+            dueDate = dueDate
         )
         update(listOf(task) + tasks)
         return true
+    }
+
+    /** Returns false when the title is blank (nothing is changed). */
+    fun edit(id: String, title: String, desc: String, priority: Priority, dueDate: Long?): Boolean {
+        val cleanTitle = title.trim()
+        if (cleanTitle.isEmpty()) return false
+        update(
+            tasks.map {
+                if (it.id == id) {
+                    it.copy(
+                        title = cleanTitle,
+                        desc = desc.trim(),
+                        priority = priority,
+                        dueDate = dueDate
+                    )
+                } else {
+                    it
+                }
+            }
+        )
+        return true
+    }
+
+    /** Removes every finished task and returns how many were removed. */
+    fun clearCompleted(): Int {
+        val remaining = tasks.filterNot { it.completed }
+        val removed = tasks.size - remaining.size
+        if (removed > 0) update(remaining)
+        return removed
     }
 
     fun toggle(id: String) {

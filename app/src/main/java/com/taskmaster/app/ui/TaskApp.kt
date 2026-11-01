@@ -1,7 +1,19 @@
 package com.taskmaster.app.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -28,7 +40,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,6 +52,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -51,6 +65,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -65,6 +80,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -116,13 +132,29 @@ internal fun Priority.color(): Color = when (this) {
 @Composable
 fun TaskApp(vm: TaskViewModel = viewModel()) {
     var showSheet by rememberSaveable { mutableStateOf(false) }
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
 
     val updates = rememberUpdateState()
     LaunchedEffect(Unit) { updates.checkOnLaunch() }
 
+    val editing = editingId?.let { id -> vm.tasks.firstOrNull { it.id == id } }
+    val sheetOpen = showSheet || editing != null
+
+    // Confetti plays when the last open task gets ticked off.
+    val allDone = vm.tasks.isNotEmpty() && vm.tasks.all { it.completed }
+    var confetti by remember { mutableIntStateOf(0) }
+    var wasAllDone by remember { mutableStateOf(allDone) }
+    LaunchedEffect(allDone) {
+        if (allDone && !wasAllDone) confetti++
+        wasAllDone = allDone
+    }
+
+    BackHandler(enabled = showSettings) { showSettings = false }
+
     // iOS-style "push back" of the main screen while the sheet is open.
     val push by animateFloatAsState(
-        targetValue = if (showSheet) 1f else 0f,
+        targetValue = if (sheetOpen) 1f else 0f,
         animationSpec = tween(400),
         label = "push"
     )
@@ -146,15 +178,41 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
             shape = RoundedCornerShape((30f * push).dp),
             color = SurfaceMain
         ) {
-            MainScreen(vm = vm, updates = updates, onAddClick = { showSheet = true })
-        }
-
-        if (showSheet) {
-            AddTaskSheet(
-                onDismiss = { showSheet = false },
-                onCreate = { title, desc, priority -> vm.addTask(title, desc, priority) }
+            MainScreen(
+                vm = vm,
+                onAddClick = { showSheet = true },
+                onEdit = { task -> editingId = task.id },
+                onSettingsClick = { showSettings = true }
             )
         }
+
+        if (sheetOpen) {
+            AddTaskSheet(
+                initial = editing,
+                onDismiss = {
+                    showSheet = false
+                    editingId = null
+                },
+                onSave = { title, desc, priority, dueDate ->
+                    val task = editing
+                    if (task != null) {
+                        vm.editTask(task.id, title, desc, priority, dueDate)
+                    } else {
+                        vm.addTask(title, desc, priority, dueDate)
+                    }
+                }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showSettings,
+            enter = slideInHorizontally(tween(320)) { it } + fadeIn(tween(320)),
+            exit = slideOutHorizontally(tween(260)) { it } + fadeOut(tween(260))
+        ) {
+            SettingsScreen(vm = vm, updates = updates, onBack = { showSettings = false })
+        }
+
+        ConfettiBurst(trigger = confetti)
 
         // Asks to update when a newer release is published on GitHub.
         UpdateDialog(updates)
@@ -166,26 +224,50 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
 /* ------------------------------------------------------------------ */
 
 @Composable
-private fun MainScreen(vm: TaskViewModel, updates: UpdateState, onAddClick: () -> Unit) {
+private fun MainScreen(
+    vm: TaskViewModel,
+    onAddClick: () -> Unit,
+    onEdit: (Task) -> Unit,
+    onSettingsClick: () -> Unit
+) {
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
     ) {
-        Header(onAddClick = onAddClick)
-        BubbleToggle()
-        UpdateRow(updates)
+        Header(
+            searchOpen = searchOpen,
+            onSearchClick = {
+                searchOpen = !searchOpen
+                if (!searchOpen) vm.updateQuery("")
+            },
+            onSettingsClick = onSettingsClick,
+            onAddClick = onAddClick
+        )
+        AnimatedVisibility(visible = searchOpen) {
+            SearchField(query = vm.query, onChange = vm::updateQuery)
+        }
+        ProgressCard(done = vm.tasks.count { it.completed }, total = vm.tasks.size)
         Filters(selected = vm.filter, onSelect = vm::selectFilter)
         TaskList(
             tasks = vm.visibleTasks,
+            searching = vm.query.isNotBlank(),
             onToggle = vm::toggleTask,
-            onDelete = vm::deleteTask
+            onDelete = vm::deleteTask,
+            onEdit = onEdit
         )
     }
 }
 
 @Composable
-private fun Header(onAddClick: () -> Unit) {
+private fun Header(
+    searchOpen: Boolean,
+    onSearchClick: () -> Unit,
+    onSettingsClick: () -> Unit,
+    onAddClick: () -> Unit
+) {
     val today = remember {
         LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.US))
     }
@@ -216,23 +298,71 @@ private fun Header(onAddClick: () -> Unit) {
             )
         }
 
-        val shape = RoundedCornerShape(16.dp)
-        Box(
-            modifier = Modifier
-                .size(50.dp)
-                .shadow(14.dp, shape, ambientColor = Primary, spotColor = Primary)
-                .clip(shape)
-                .background(PrimaryGradient)
-                .clickable(onClick = onAddClick),
-            contentAlignment = Alignment.Center
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(
-                imageVector = Icons.Filled.Add,
-                contentDescription = "Add task",
-                tint = TextMain,
-                modifier = Modifier.size(24.dp)
+            HeaderIconButton(
+                icon = Icons.Filled.Settings,
+                description = "Settings",
+                onClick = onSettingsClick
             )
+            HeaderIconButton(
+                icon = Icons.Filled.Search,
+                description = "Search",
+                highlighted = searchOpen,
+                onClick = onSearchClick
+            )
+
+            val shape = RoundedCornerShape(16.dp)
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .shadow(14.dp, shape, ambientColor = Primary, spotColor = Primary)
+                    .clip(shape)
+                    .background(PrimaryGradient)
+                    .clickable(onClick = onAddClick),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = "Add task",
+                    tint = TextMain,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun HeaderIconButton(
+    icon: ImageVector,
+    description: String,
+    onClick: () -> Unit,
+    highlighted: Boolean = false
+) {
+    val shape = RoundedCornerShape(14.dp)
+    val tint by animateColorAsState(
+        targetValue = if (highlighted) PrimaryLight else TextMuted,
+        animationSpec = tween(250),
+        label = "headerIcon"
+    )
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(shape)
+            .background(SurfaceCard)
+            .border(1.dp, BorderColor, shape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = tint,
+            modifier = Modifier.size(21.dp)
+        )
     }
 }
 
@@ -302,11 +432,13 @@ private fun FilterTab(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun TaskList(
     tasks: List<Task>,
+    searching: Boolean,
     onToggle: (String) -> Unit,
-    onDelete: (String) -> Unit
+    onDelete: (String) -> Unit,
+    onEdit: (Task) -> Unit
 ) {
     if (tasks.isEmpty()) {
-        EmptyState()
+        EmptyState(searching)
         return
     }
 
@@ -322,18 +454,45 @@ private fun TaskList(
         ),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        items(items = tasks, key = { it.id }) { task ->
+        itemsIndexed(items = tasks, key = { _, task -> task.id }) { index, task ->
+            // Each card fades and rises in, a little after the one above it. This only changes
+            // how the card is drawn, never where it sits, so it cannot get stuck mid-screen.
+            var shown by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) { shown = true }
+            val entrance by animateFloatAsState(
+                targetValue = if (shown) 1f else 0f,
+                animationSpec = tween(
+                    durationMillis = 450,
+                    delayMillis = 60 * index.coerceAtMost(8),
+                    easing = FastOutSlowInEasing
+                ),
+                label = "entrance"
+            )
             TaskItem(
                 task = task,
                 onToggle = { onToggle(task.id) },
-                onDelete = { onDelete(task.id) }
+                onDelete = { onDelete(task.id) },
+                onEdit = { onEdit(task) },
+                modifier = Modifier.graphicsLayer {
+                    alpha = entrance
+                    translationY = (1f - entrance) * 36.dp.toPx()
+                }
             )
         }
     }
 }
 
 @Composable
-private fun EmptyState() {
+private fun EmptyState(searching: Boolean) {
+    val floating by rememberInfiniteTransition(label = "moon").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            tween(2200, easing = FastOutSlowInEasing),
+            RepeatMode.Reverse
+        ),
+        label = "moonFloat"
+    )
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -344,17 +503,20 @@ private fun EmptyState() {
             fontSize = 54.sp,
             modifier = Modifier
                 .padding(bottom = 20.dp)
-                .graphicsLayer { alpha = 0.35f }
+                .graphicsLayer {
+                    alpha = 0.35f
+                    translationY = (floating - 0.5f) * 16.dp.toPx()
+                }
         )
         Text(
-            text = "No tasks found.",
+            text = if (searching) "Nothing matches your search." else "No tasks found.",
             color = TextMuted,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center
         )
         Text(
-            text = "Time to chill and relax.",
+            text = if (searching) "Try a different word." else "Time to chill and relax.",
             color = TextMuted.copy(alpha = 0.7f),
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
@@ -363,11 +525,25 @@ private fun EmptyState() {
     }
 }
 
+/** Label and colour for a due date: overdue is red, today amber, tomorrow accent. */
+private fun dueInfo(epochDay: Long, completed: Boolean): Pair<String, Color> {
+    val short = LocalDate.ofEpochDay(epochDay).format(DateTimeFormatter.ofPattern("MMM d", Locale.US))
+    val diff = epochDay - LocalDate.now().toEpochDay()
+    return when {
+        completed -> "Due $short" to TextMuted
+        diff < 0L -> "Overdue \u00B7 $short" to HighPri
+        diff == 0L -> "Due today" to MedPri
+        diff == 1L -> "Due tomorrow" to PrimaryLight
+        else -> "Due $short" to TextMuted
+    }
+}
+
 @Composable
 private fun TaskItem(
     task: Task,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
+    onEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val cardShape = RoundedCornerShape(20.dp)
@@ -383,6 +559,7 @@ private fun TaskItem(
             .clip(cardShape)
             .background(SurfaceCard)
             .border(1.dp, BorderColor, cardShape)
+            .clickable(onClick = onEdit)
             .padding(20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -408,6 +585,17 @@ private fun TaskItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+            val due = task.dueDate
+            if (due != null) {
+                val (dueText, dueColor) = dueInfo(due, task.completed)
+                Text(
+                    text = dueText,
+                    color = dueColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
             Row(
@@ -454,6 +642,19 @@ private fun TaskItem(
 @Composable
 internal fun Checkbox(checked: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(8.dp)
+    val bounce = remember { Animatable(1f) }
+    var firstRun by remember { mutableStateOf(true) }
+    LaunchedEffect(checked) {
+        if (firstRun) {
+            firstRun = false
+            return@LaunchedEffect
+        }
+        bounce.snapTo(0.7f)
+        bounce.animateTo(
+            1f,
+            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
+        )
+    }
     val iconProgress by animateFloatAsState(
         targetValue = if (checked) 1f else 0f,
         animationSpec = tween(300),
@@ -463,6 +664,10 @@ internal fun Checkbox(checked: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(26.dp)
+            .graphicsLayer {
+                scaleX = bounce.value
+                scaleY = bounce.value
+            }
             .then(
                 if (checked) {
                     Modifier.shadow(10.dp, shape, ambientColor = Primary, spotColor = Primary)
@@ -504,15 +709,17 @@ internal fun Checkbox(checked: Boolean, onClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddTaskSheet(
+    initial: Task?,
     onDismiss: () -> Unit,
-    onCreate: (title: String, desc: String, priority: Priority) -> Boolean
+    onSave: (title: String, desc: String, priority: Priority, dueDate: Long?) -> Boolean
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
-    var title by rememberSaveable { mutableStateOf("") }
-    var desc by rememberSaveable { mutableStateOf("") }
-    var priority by rememberSaveable { mutableStateOf(Priority.MEDIUM) }
+    var title by rememberSaveable { mutableStateOf(initial?.title ?: "") }
+    var desc by rememberSaveable { mutableStateOf(initial?.desc ?: "") }
+    var priority by rememberSaveable { mutableStateOf(initial?.priority ?: Priority.MEDIUM) }
+    var dueDate by rememberSaveable { mutableStateOf(initial?.dueDate) }
 
     val shake = remember { Animatable(0f) }
     val titleFocus = remember { FocusRequester() }
@@ -522,7 +729,7 @@ private fun AddTaskSheet(
     }
 
     fun submit() {
-        if (onCreate(title, desc, priority)) {
+        if (onSave(title, desc, priority, dueDate)) {
             dismiss()
         } else {
             scope.launch {
@@ -572,7 +779,7 @@ private fun AddTaskSheet(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "New Task",
+                    text = if (initial == null) "New Task" else "Edit Task",
                     color = TextMain,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.SemiBold
@@ -640,6 +847,11 @@ private fun AddTaskSheet(
                 }
             }
 
+            // Due date
+            FieldGroup(label = "Due date") {
+                DueChips(selected = dueDate, onSelect = { dueDate = it })
+            }
+
             Spacer(Modifier.height(4.dp))
 
             // Create button
@@ -655,7 +867,7 @@ private fun AddTaskSheet(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Create Task",
+                    text = if (initial == null) "Create Task" else "Save Changes",
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold

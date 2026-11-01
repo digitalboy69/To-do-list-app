@@ -1,13 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Back card, tilted, for a layered look -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="-9">
+        <path
+            android:fillColor="#59FFFFFF"
+            android:pathData="M36,28h36a8,8 0 0,1 8,8v36a8,8 0 0,1 -8,8h-36a8,8 0 0,1 -8,-8v-36a8,8 0 0,1 8,-8z" />
+    </group>
+
+    <!-- Front card with a soft shadow edge -->
     <path
-        android:pathData="M36,56 L48,68 L74,40"
-        android:strokeColor="#818CF8"
-        android:strokeWidth="8"
+        android:fillColor="#33000000"
+        android:pathData="M37,32h36a9,9 0 0,1 9,9v34a9,9 0 0,1 -9,9h-36a9,9 0 0,1 -9,-9v-34a9,9 0 0,1 9,-9z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M37,29h36a9,9 0 0,1 9,9v34a9,9 0 0,1 -9,9h-36a9,9 0 0,1 -9,-9v-34a9,9 0 0,1 9,-9z" />
+
+    <!-- Bold gradient check mark -->
+    <path
+        android:pathData="M40,53 L50,63 L69,41"
+        android:strokeWidth="7.5"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="40"
+                android:startY="41"
+                android:endX="69"
+                android:endY="63"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF4F46E5" />
+                <item android:offset="1.0" android:color="#FFC026D3" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Task line -->
+    <path
+        android:pathData="M40,73 L60,73"
+        android:strokeColor="#FFC7D2FE"
+        android:strokeWidth="4"
+        android:strokeLineCap="round" />
+
+    <!-- Sparkle -->
+    <path
+        android:fillColor="#FFFDE68A"
+        android:pathData="M82,18 L84.6,25.4 L92,28 L84.6,30.6 L82,38 L79.4,30.6 L72,28 L79.4,25.4 z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M25,74 L26.6,78.4 L31,80 L26.6,81.6 L25,86 L23.4,81.6 L19,80 L23.4,78.4 z" />
 </vector>

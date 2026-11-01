@@ -79,6 +79,8 @@ fun BubbleToggle(modifier: Modifier = Modifier) {
         onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
+    var showGuide by remember { mutableStateOf(false) }
+
     fun turnOn() {
         OverlaySettings.setEnabled(context, true)
         OverlayService.start(context)
@@ -106,17 +108,18 @@ fun BubbleToggle(modifier: Modifier = Modifier) {
         }
     }
 
-    fun requestOverlayPermissionOrTurnOn() {
-        if (OverlaySettings.canDraw(context)) {
-            turnOn()
-        } else {
-            overlayPermissionLauncher.launch(
-                Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${context.packageName}")
-                )
+    // Opens TaskMaster's own "Display over other apps" page, where the switch is the only choice.
+    fun openOverlaySettings() {
+        overlayPermissionLauncher.launch(
+            Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:${context.packageName}")
             )
-        }
+        )
+    }
+
+    fun requestOverlayPermissionOrTurnOn() {
+        if (OverlaySettings.canDraw(context)) turnOn() else showGuide = true
     }
 
     // The bubble works even if this is denied; the notification is just hidden in that case.
@@ -135,6 +138,23 @@ fun BubbleToggle(modifier: Modifier = Modifier) {
         } else {
             requestOverlayPermissionOrTurnOn()
         }
+    }
+
+    if (showGuide) {
+        PermissionGuideDialog(
+            title = "One quick permission",
+            switchLabel = "Allow display over other apps",
+            steps = listOf(
+                "Tap Open settings. You land on TaskMaster's own page.",
+                "Turn on \"Allow display over other apps\".",
+                "Press back. The bubble starts by itself."
+            ),
+            onOpenSettings = {
+                showGuide = false
+                openOverlaySettings()
+            },
+            onDismiss = { showGuide = false }
+        )
     }
 
     val shape = RoundedCornerShape(20.dp)

@@ -1,7 +1,6 @@
 package com.taskmaster.app.ui
 
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,6 +69,8 @@ class UpdateState(
         private set
     var messageIsError by mutableStateOf(false)
         private set
+    var installGuideOpen by mutableStateOf(false)
+        private set
 
     /** Asks once per app launch, quietly: nothing is shown unless a newer version exists. */
     fun checkOnLaunch() {
@@ -115,12 +116,7 @@ class UpdateState(
         val info = available ?: return
         failed = false
         if (!UpdateChecker.canInstall(context)) {
-            Toast.makeText(
-                context,
-                "Allow TaskMaster to install updates, then come back and tap Update now",
-                Toast.LENGTH_LONG
-            ).show()
-            UpdateChecker.openInstallPermissionSettings(context)
+            installGuideOpen = true
             return
         }
         scope.launch {
@@ -134,6 +130,15 @@ class UpdateState(
                 failed = true
             }
         }
+    }
+
+    fun openInstallSettings() {
+        installGuideOpen = false
+        UpdateChecker.openInstallPermissionSettings(context)
+    }
+
+    fun dismissInstallGuide() {
+        installGuideOpen = false
     }
 
     private companion object {
@@ -266,4 +271,18 @@ fun UpdateDialog(state: UpdateState) {
             }
         }
     )
+
+    if (state.installGuideOpen) {
+        PermissionGuideDialog(
+            title = "Allow updates",
+            switchLabel = "Allow from this source",
+            steps = listOf(
+                "Tap Open settings. You land on TaskMaster's own page.",
+                "Turn on \"Allow from this source\".",
+                "Press back and tap Update now again."
+            ),
+            onOpenSettings = { state.openInstallSettings() },
+            onDismiss = { state.dismissInstallGuide() }
+        )
+    }
 }
