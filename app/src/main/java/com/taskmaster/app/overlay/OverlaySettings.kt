@@ -11,6 +11,7 @@ object OverlaySettings {
     const val KEY_ENABLED = "bubble_enabled"
     private const val KEY_RIGHT = "bubble_right"
     private const val KEY_Y = "bubble_y"
+    private const val KEY_TAB = "popup_tab"
 
     fun prefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -31,5 +32,13 @@ object OverlaySettings {
 
     fun savePosition(context: Context, rightSide: Boolean, y: Int) {
         prefs(context).edit().putBoolean(KEY_RIGHT, rightSide).putInt(KEY_Y, y).apply()
+    }
+
+    /** The popup tab used last, so it reopens where the person left it. */
+    fun lastTab(context: Context): PopupTab =
+        if (prefs(context).getString(KEY_TAB, null) == PopupTab.DUMP.name) PopupTab.DUMP else PopupTab.TASKS
+
+    fun saveTab(context: Context, tab: PopupTab) {
+        prefs(context).edit().putString(KEY_TAB, tab.name).apply()
     }
 }

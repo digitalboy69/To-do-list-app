@@ -16,6 +16,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.IBinder
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -38,6 +39,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.taskmaster.app.MainActivity
 import com.taskmaster.app.R
+import com.taskmaster.app.data.NoteStore
 import com.taskmaster.app.data.TaskStore
 import com.taskmaster.app.ui.theme.TaskMasterTheme
 import kotlin.math.hypot
@@ -52,6 +54,7 @@ class OverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
     private lateinit var store: TaskStore
+    private lateinit var noteStore: NoteStore
     private lateinit var owner: ServiceOwner
 
     private var bubbleView: View? = null
@@ -71,6 +74,7 @@ class OverlayService : Service() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         store = TaskStore.get(this)
+        noteStore = NoteStore.get(this)
         owner = ServiceOwner().also { it.start() }
         createNotificationChannel()
     }
@@ -94,6 +98,8 @@ class OverlayService : Service() {
         }
 
         showBubble()
+        // "Brain dump" button in the notification: open the popup straight on the dump tab.
+        if (intent?.action == ACTION_DUMP) showPopup(PopupTab.DUMP)
         return START_STICKY
     }
 
@@ -167,6 +173,16 @@ class OverlayService : Service() {
         private var startX = 0
         private var startY = 0
         private var dragging = false
+        private var longPressed = false
+
+        // Holding the bubble opens the popup straight on Brain dump, keyboard up.
+        private val longPressRunnable = Runnable {
+            if (!dragging) {
+                longPressed = true
+                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                showPopup(PopupTab.DUMP)
+            }
+        }
 
         override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = true
 
@@ -187,6 +203,8 @@ class OverlayService : Service() {
                     downRawY = event.rawY
                     startY = params.y
                     dragging = false
+                    longPressed = false
+                    handler.postDelayed(longPressRunnable, ViewConfiguration.getLongPressTimeout().toLong())
                 }
 
                 MotionEvent.ACTION_MOVE -> {
@@ -194,6 +212,7 @@ class OverlayService : Service() {
                     val dy = event.rawY - downRawY
                     if (!dragging && hypot(dx, dy) > touchSlop) {
                         dragging = true
+                        handler.removeCallbacks(longPressRunnable)
                         snapAnimator?.cancel()
                     }
                     if (dragging) {
@@ -204,7 +223,19 @@ class OverlayService : Service() {
                 }
 
                 MotionEvent.ACTION_UP -> {
-                    if (dragging) snapToEdge() else performClick()
+                    handler.removeCallbacks(longPressRunnable)
+                    if (longPressed) {
+                        // The long press already opened the popup.
+                    } else if (dragging) {
+                        snapToEdge()
+                    } else {
+                        performClick()
+                    }
+                    scheduleDock()
+                }
+
+                MotionEvent.ACTION_CANCEL -> {
+                    handler.removeCallbacks(longPressRunnable)
                     scheduleDock()
                 }
             }
@@ -290,8 +321,10 @@ class OverlayService : Service() {
     /* Popup                                                           */
     /* -------------------------------------------------------------- */
 
-    private fun showPopup() {
+    private fun showPopup(tab: PopupTab? = null) {
         if (popupView != null) return
+        val startTab = tab ?: OverlaySettings.lastTab(this)
+        if (tab != null) OverlaySettings.saveTab(this, tab)
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -301,7 +334,12 @@ class OverlayService : Service() {
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
-            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
+                if (startTab == PopupTab.DUMP) {
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
+                } else {
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED
+                }
         }
 
         val root = PopupFrame(this).apply {
@@ -309,8 +347,11 @@ class OverlayService : Service() {
             addView(ComposeView(context).apply {
                 setContent {
                     TaskMasterTheme {
-                        QuickTasksPopup(
-                            store = store,
+                        QuickPopup(
+                            tasks = store,
+                            notes = noteStore,
+                            startTab = startTab,
+                            onTabChange = { OverlaySettings.saveTab(this@OverlayService, it) },
                             onClose = { hidePopup() },
                             onOpenApp = { openApp() }
                         )
@@ -435,6 +476,12 @@ class OverlayService : Service() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+        val dump = PendingIntent.getService(
+            this,
+            2,
+            Intent(this, OverlayService::class.java).setAction(ACTION_DUMP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
         val turnOff = PendingIntent.getService(
             this,
             1,
@@ -446,6 +493,7 @@ class OverlayService : Service() {
             .setContentTitle(getString(R.string.bubble_notification_title))
             .setContentText(getString(R.string.bubble_notification_text))
             .setContentIntent(openApp)
+            .addAction(0, getString(R.string.bubble_notification_dump), dump)
             .addAction(0, getString(R.string.bubble_notification_turn_off), turnOff)
             .setOngoing(true)
             .setSilent(true)
@@ -458,6 +506,7 @@ class OverlayService : Service() {
         private const val CHANNEL_ID = "taskmaster_bubble"
         private const val NOTIFICATION_ID = 1001
         private const val ACTION_STOP = "com.taskmaster.app.overlay.STOP"
+        private const val ACTION_DUMP = "com.taskmaster.app.overlay.DUMP"
 
         private const val DOCK_DELAY_MS = 2500L
         private const val DOCKED_ALPHA = 0.5f

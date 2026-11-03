@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="brain_dump"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_dump_short"
+        android:shortcutLongLabel="@string/shortcut_dump_long">
+        <intent
+            android:action="com.taskmaster.app.action.BRAIN_DUMP"
+            android:targetClass="com.taskmaster.app.MainActivity"
+            android:targetPackage="com.taskmaster.app" />
+    </shortcut>
+</shortcuts>

@@ -96,7 +96,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.taskmaster.app.TaskViewModel
 import com.taskmaster.app.data.Priority
+import com.taskmaster.app.data.NoteStore
 import com.taskmaster.app.data.RoutineStore
+import com.taskmaster.app.data.TaskStore
 import com.taskmaster.app.data.Task
 import com.taskmaster.app.data.TaskFilter
 import com.taskmaster.app.ui.theme.BgOuter
@@ -133,16 +135,29 @@ internal fun Priority.color(): Color = when (this) {
 /* ------------------------------------------------------------------ */
 
 @Composable
-fun TaskApp(vm: TaskViewModel = viewModel()) {
+fun TaskApp(vm: TaskViewModel = viewModel(), dumpRequest: Int = 0) {
     var showSheet by rememberSaveable { mutableStateOf(false) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showRoutines by rememberSaveable { mutableStateOf(false) }
+    var showDump by rememberSaveable { mutableStateOf(false) }
     // "" = no editor open, "new" = creating, otherwise the id of the routine being edited.
     var editorId by rememberSaveable { mutableStateOf("") }
     var runningId by rememberSaveable { mutableStateOf("") }
 
-    val routineStore = RoutineStore.get(LocalContext.current)
+    val appContext = LocalContext.current
+    val routineStore = RoutineStore.get(appContext)
+    val noteStore = NoteStore.get(appContext)
+    val taskStore = TaskStore.get(appContext)
+
+    // The "Brain dump" app shortcut (long-press the app icon) asks for the dump screen.
+    LaunchedEffect(dumpRequest) {
+        if (dumpRequest > 0) {
+            showSettings = false
+            showRoutines = false
+            showDump = true
+        }
+    }
 
     val updates = rememberUpdateState()
     LaunchedEffect(Unit) { updates.checkOnLaunch() }
@@ -161,6 +176,7 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
 
     BackHandler(enabled = showSettings) { showSettings = false }
     BackHandler(enabled = showRoutines) { showRoutines = false }
+    BackHandler(enabled = showDump) { showDump = false }
     BackHandler(enabled = editorId.isNotEmpty()) { editorId = "" }
     BackHandler(enabled = runningId.isNotEmpty()) { runningId = "" }
 
@@ -196,7 +212,9 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
                 onEdit = { task -> editingId = task.id },
                 onSettingsClick = { showSettings = true },
                 routineCount = routineStore.routines.size,
-                onRoutinesClick = { showRoutines = true }
+                onRoutinesClick = { showRoutines = true },
+                noteCount = noteStore.notes.size,
+                onDumpClick = { showDump = true }
             )
         }
 
@@ -238,6 +256,19 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
                 onNew = { editorId = "new" },
                 onEdit = { editorId = it.id },
                 onStart = { runningId = it.id }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showDump,
+            enter = slideInHorizontally(tween(320)) { it } + fadeIn(tween(320)),
+            exit = slideOutHorizontally(tween(260)) { it } + fadeOut(tween(260))
+        ) {
+            BrainDumpScreen(
+                notes = noteStore,
+                tasks = taskStore,
+                autoFocus = true,
+                onBack = { showDump = false }
             )
         }
 
@@ -288,7 +319,9 @@ private fun MainScreen(
     onEdit: (Task) -> Unit,
     onSettingsClick: () -> Unit,
     routineCount: Int,
-    onRoutinesClick: () -> Unit
+    onRoutinesClick: () -> Unit,
+    noteCount: Int,
+    onDumpClick: () -> Unit
 ) {
     var searchOpen by rememberSaveable { mutableStateOf(false) }
 
@@ -310,7 +343,12 @@ private fun MainScreen(
             SearchField(query = vm.query, onChange = vm::updateQuery)
         }
         ProgressCard(done = vm.tasks.count { it.completed }, total = vm.tasks.size)
-        RoutinesEntryCard(count = routineCount, onClick = onRoutinesClick)
+        HomeShortcuts(
+            noteCount = noteCount,
+            routineCount = routineCount,
+            onDumpClick = onDumpClick,
+            onRoutinesClick = onRoutinesClick
+        )
         Filters(selected = vm.filter, onSelect = vm::selectFilter)
         TaskList(
             tasks = vm.visibleTasks,

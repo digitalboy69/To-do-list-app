@@ -79,50 +79,6 @@ internal fun SlideInPage(content: @Composable () -> Unit) {
     }
 }
 
-/** Card on the home screen that opens the routines page. */
-@Composable
-internal fun RoutinesEntryCard(count: Int, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(20.dp)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 25.dp, end = 25.dp, top = 6.dp, bottom = 10.dp)
-            .clip(shape)
-            .background(SurfaceCard)
-            .border(1.dp, BorderColor, shape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(Primary.copy(alpha = 0.18f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("🔁", fontSize = 18.sp)
-        }
-        Spacer(Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Routines",
-                color = TextMain,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = if (count == 0) "Turn a big task into small steps"
-                else if (count == 1) "1 template, ready to use"
-                else "$count templates, ready to use",
-                color = TextMuted,
-                fontSize = 12.sp
-            )
-        }
-        Text("›", color = PrimaryLight, fontSize = 26.sp)
-    }
-}
-
 /** All saved routines, with start / add-to-tasks / share on each and import at the top. */
 @Composable
 fun RoutinesScreen(

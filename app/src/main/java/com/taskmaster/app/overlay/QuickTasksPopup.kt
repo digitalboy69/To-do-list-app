@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -54,12 +56,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.taskmaster.app.data.Priority
+import com.taskmaster.app.data.NoteStore
 import com.taskmaster.app.data.Task
 import com.taskmaster.app.data.TaskStore
+import com.taskmaster.app.ui.BrainDumpPanel
 import com.taskmaster.app.ui.Checkbox
 import com.taskmaster.app.ui.PriorityButton
 import com.taskmaster.app.ui.SheetTextField
 import com.taskmaster.app.ui.color
+import com.taskmaster.app.ui.nowStamp
 import com.taskmaster.app.ui.theme.BorderColor
 import com.taskmaster.app.ui.theme.HighPri
 import com.taskmaster.app.ui.theme.Primary
@@ -127,14 +132,22 @@ fun BubbleContent(store: TaskStore) {
 /* The popup that opens when the bubble is tapped                      */
 /* ------------------------------------------------------------------ */
 
+enum class PopupTab { TASKS, DUMP }
+
+/**
+ * Tall popup with two tabs: Tasks (add / tick) and Brain dump (capture any thought with its date
+ * and time). It opens on the tab used last, or straight on Brain dump with the keyboard up.
+ */
 @Composable
-fun QuickTasksPopup(
-    store: TaskStore,
+fun QuickPopup(
+    tasks: TaskStore,
+    notes: NoteStore,
+    startTab: PopupTab,
+    onTabChange: (PopupTab) -> Unit,
     onClose: () -> Unit,
     onOpenApp: () -> Unit
 ) {
-    var title by remember { mutableStateOf("") }
-    var priority by remember { mutableStateOf(Priority.MEDIUM) }
+    var tab by remember { mutableStateOf(startTab) }
 
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
@@ -144,16 +157,9 @@ fun QuickTasksPopup(
         label = "popupIn"
     )
 
-    // Unfinished tasks first; the sort is stable, so each group keeps its newest-first order.
-    val tasks = store.tasks.sortedBy { it.completed }
-    val pending = tasks.count { !it.completed }
-
+    val pending = tasks.tasks.count { !it.completed }
     val noRipple = remember { MutableInteractionSource() }
     val panelShape = RoundedCornerShape(28.dp)
-
-    fun submit() {
-        if (store.add(title, "", priority)) title = ""
-    }
 
     // Tapping the dimmed area closes the popup.
     Box(
@@ -163,12 +169,14 @@ fun QuickTasksPopup(
             .clickable(interactionSource = noRipple, indication = null, onClick = onClose),
         contentAlignment = Alignment.TopCenter
     ) {
-        // The panel sits near the top so the on-screen keyboard never covers it.
+        // Anchored to the top and sized to the window, so the keyboard shrinks it instead of
+        // covering the capture box.
         Column(
             modifier = Modifier
-                .padding(top = 56.dp, start = 16.dp, end = 16.dp)
-                .widthIn(max = 420.dp)
+                .padding(top = 40.dp, start = 12.dp, end = 12.dp, bottom = 12.dp)
+                .widthIn(max = 440.dp)
                 .fillMaxWidth()
+                .fillMaxHeight()
                 .graphicsLayer {
                     alpha = progress
                     translationY = (1f - progress) * -24.dp.toPx()
@@ -179,7 +187,7 @@ fun QuickTasksPopup(
                 .border(1.dp, BorderColor, panelShape)
                 // Swallow taps so touching the panel itself does not dismiss it.
                 .clickable(interactionSource = noRipple, indication = null, onClick = {})
-                .padding(20.dp)
+                .padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -187,7 +195,7 @@ fun QuickTasksPopup(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Quick Tasks",
+                        text = "TaskMaster",
                         style = TextStyle(
                             brush = PrimaryGradient,
                             fontSize = 22.sp,
@@ -196,9 +204,9 @@ fun QuickTasksPopup(
                         )
                     )
                     Text(
-                        text = if (pending == 0) "All caught up" else "$pending pending",
+                        text = nowStamp(),
                         color = TextMuted,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(top = 2.dp)
                     )
@@ -220,87 +228,58 @@ fun QuickTasksPopup(
                 }
             }
 
-            Spacer(Modifier.size(16.dp))
+            Spacer(Modifier.height(14.dp))
 
+            val tabsShape = RoundedCornerShape(16.dp)
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(tabsShape)
+                    .background(SurfaceInput)
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                SheetTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    placeholder = "Add a task...",
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions(onDone = { submit() }),
-                    modifier = Modifier.weight(1f)
-                )
-                val addShape = RoundedCornerShape(16.dp)
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .shadow(10.dp, addShape, ambientColor = Primary, spotColor = Primary)
-                        .clip(addShape)
-                        .background(PrimaryGradient)
-                        .clickable { submit() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = "Add task",
-                        tint = TextMain,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.size(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Priority.entries.forEach { p ->
-                    PriorityButton(
-                        priority = p,
-                        selected = p == priority,
-                        onClick = { priority = p },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            Spacer(Modifier.size(14.dp))
-
-            if (tasks.isEmpty()) {
-                Text(
-                    text = "No tasks yet. Add your first one above.",
-                    color = TextMuted,
-                    fontSize = 14.sp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 18.dp)
-                )
-            } else {
-                LazyColumn(modifier = Modifier.heightIn(max = 260.dp)) {
-                    items(tasks, key = { it.id }) { task ->
-                        QuickTaskRow(task = task, onToggle = { store.toggle(task.id) })
+                PopupTabButton(
+                    label = "Tasks",
+                    count = pending,
+                    selected = tab == PopupTab.TASKS,
+                    onClick = {
+                        tab = PopupTab.TASKS
+                        onTabChange(PopupTab.TASKS)
                     }
-                }
+                )
+                PopupTabButton(
+                    label = "Brain dump",
+                    count = notes.notes.size,
+                    selected = tab == PopupTab.DUMP,
+                    onClick = {
+                        tab = PopupTab.DUMP
+                        onTabChange(PopupTab.DUMP)
+                    }
+                )
             }
 
-            Spacer(Modifier.size(10.dp))
+            Spacer(Modifier.height(14.dp))
+
+            Box(modifier = Modifier.weight(1f)) {
+                if (tab == PopupTab.TASKS) {
+                    TasksTab(store = tasks)
+                } else {
+                    BrainDumpPanel(
+                        notes = notes,
+                        tasks = tasks,
+                        autoFocus = true,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .clickable(onClick = onOpenApp)
-                    .padding(vertical = 12.dp),
+                    .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -309,6 +288,134 @@ fun QuickTasksPopup(
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowScope.PopupTabButton(
+    label: String,
+    count: Int,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = Modifier
+            .weight(1f)
+            .height(42.dp)
+            .clip(shape)
+            .then(if (selected) Modifier.background(PrimaryGradient) else Modifier)
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = label,
+            color = if (selected) TextMain else TextMuted,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        if (count > 0) {
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = if (count > 99) "99+" else count.toString(),
+                color = if (selected) TextMain else PrimaryLight,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .background(
+                        if (selected) Color.White.copy(alpha = 0.22f) else SurfaceModal,
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 6.dp, vertical = 1.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun TasksTab(store: TaskStore) {
+    var title by remember { mutableStateOf("") }
+    var priority by remember { mutableStateOf(Priority.MEDIUM) }
+
+    // Unfinished tasks first; the sort is stable, so each group keeps its newest-first order.
+    val tasks = store.tasks.sortedBy { it.completed }
+
+    fun submit() {
+        if (store.add(title, "", priority)) title = ""
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            SheetTextField(
+                value = title,
+                onValueChange = { title = it },
+                placeholder = "Add a task...",
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(onDone = { submit() }),
+                modifier = Modifier.weight(1f)
+            )
+            val addShape = RoundedCornerShape(16.dp)
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .shadow(10.dp, addShape, ambientColor = Primary, spotColor = Primary)
+                    .clip(addShape)
+                    .background(PrimaryGradient)
+                    .clickable { submit() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = "Add task",
+                    tint = TextMain,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Priority.entries.forEach { p ->
+                PriorityButton(
+                    priority = p,
+                    selected = p == priority,
+                    onClick = { priority = p },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        if (tasks.isEmpty()) {
+            Text(
+                text = "No tasks yet. Add your first one above.",
+                color = TextMuted,
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 18.dp)
+            )
+        } else {
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(tasks, key = { it.id }) { task ->
+                    QuickTaskRow(task = task, onToggle = { store.toggle(task.id) })
+                }
             }
         }
     }
