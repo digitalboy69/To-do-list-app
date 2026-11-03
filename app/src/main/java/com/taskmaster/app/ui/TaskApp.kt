@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -95,6 +96,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.taskmaster.app.TaskViewModel
 import com.taskmaster.app.data.Priority
+import com.taskmaster.app.data.RoutineStore
 import com.taskmaster.app.data.Task
 import com.taskmaster.app.data.TaskFilter
 import com.taskmaster.app.ui.theme.BgOuter
@@ -135,6 +137,12 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
     var showSheet by rememberSaveable { mutableStateOf(false) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showRoutines by rememberSaveable { mutableStateOf(false) }
+    // "" = no editor open, "new" = creating, otherwise the id of the routine being edited.
+    var editorId by rememberSaveable { mutableStateOf("") }
+    var runningId by rememberSaveable { mutableStateOf("") }
+
+    val routineStore = RoutineStore.get(LocalContext.current)
 
     val updates = rememberUpdateState()
     LaunchedEffect(Unit) { updates.checkOnLaunch() }
@@ -152,6 +160,9 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
     }
 
     BackHandler(enabled = showSettings) { showSettings = false }
+    BackHandler(enabled = showRoutines) { showRoutines = false }
+    BackHandler(enabled = editorId.isNotEmpty()) { editorId = "" }
+    BackHandler(enabled = runningId.isNotEmpty()) { runningId = "" }
 
     // iOS-style "push back" of the main screen while the sheet is open.
     val push by animateFloatAsState(
@@ -183,7 +194,9 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
                 vm = vm,
                 onAddClick = { showSheet = true },
                 onEdit = { task -> editingId = task.id },
-                onSettingsClick = { showSettings = true }
+                onSettingsClick = { showSettings = true },
+                routineCount = routineStore.routines.size,
+                onRoutinesClick = { showRoutines = true }
             )
         }
 
@@ -213,6 +226,50 @@ fun TaskApp(vm: TaskViewModel = viewModel()) {
             SettingsScreen(vm = vm, updates = updates, onBack = { showSettings = false })
         }
 
+        AnimatedVisibility(
+            visible = showRoutines,
+            enter = slideInHorizontally(tween(320)) { it } + fadeIn(tween(320)),
+            exit = slideOutHorizontally(tween(260)) { it } + fadeOut(tween(260))
+        ) {
+            RoutinesScreen(
+                store = routineStore,
+                vm = vm,
+                onBack = { showRoutines = false },
+                onNew = { editorId = "new" },
+                onEdit = { editorId = it.id },
+                onStart = { runningId = it.id }
+            )
+        }
+
+        if (editorId.isNotEmpty()) {
+            val id = editorId
+            val routine = routineStore.routines.firstOrNull { it.id == id }
+            SlideInPage {
+                RoutineEditor(
+                    initial = routine,
+                    onBack = { editorId = "" },
+                    onSave = { name, emoji, steps ->
+                        val saved = routineStore.save(routine?.id, name, emoji, steps)
+                        if (saved) editorId = ""
+                        saved
+                    },
+                    onDelete = routine?.let { r ->
+                        {
+                            routineStore.delete(r.id)
+                            editorId = ""
+                        }
+                    }
+                )
+            }
+        }
+
+        if (runningId.isNotEmpty()) {
+            val running = routineStore.routines.firstOrNull { it.id == runningId }
+            if (running != null) {
+                SlideInPage { RoutineRunner(routine = running, onClose = { runningId = "" }) }
+            }
+        }
+
         ConfettiBurst(trigger = confetti)
 
         // Asks to update when a newer release is published on GitHub.
@@ -229,7 +286,9 @@ private fun MainScreen(
     vm: TaskViewModel,
     onAddClick: () -> Unit,
     onEdit: (Task) -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    routineCount: Int,
+    onRoutinesClick: () -> Unit
 ) {
     var searchOpen by rememberSaveable { mutableStateOf(false) }
 
@@ -251,6 +310,7 @@ private fun MainScreen(
             SearchField(query = vm.query, onChange = vm::updateQuery)
         }
         ProgressCard(done = vm.tasks.count { it.completed }, total = vm.tasks.size)
+        RoutinesEntryCard(count = routineCount, onClick = onRoutinesClick)
         Filters(selected = vm.filter, onSelect = vm::selectFilter)
         TaskList(
             tasks = vm.visibleTasks,

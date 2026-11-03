@@ -21,14 +21,19 @@
 
 > These images are design previews rendered from the app's real colours and layout, not device screenshots. Real screens may differ slightly.
 
-| Home | New task | Settings | Floating bubble |
-| :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/home.png" width="190" /> | <img src="docs/screenshots/add.png" width="190" /> | <img src="docs/screenshots/settings.png" width="190" /> | <img src="docs/screenshots/bubble.png" width="190" /> |
+| Home | Routines | Run a routine |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/home.png" width="230" /> | <img src="docs/screenshots/routines.png" width="230" /> | <img src="docs/screenshots/runner.png" width="230" /> |
+
+| New task | Settings | Floating bubble |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/add.png" width="230" /> | <img src="docs/screenshots/settings.png" width="230" /> | <img src="docs/screenshots/bubble.png" width="230" /> |
 
 Built with Kotlin and Jetpack Compose (Material 3), with a dark indigo and purple look.
 
 ## Features
 
+- **Routines (templates)**: turn a big task into a sequence of small steps, save it once, and use it again and again. Built with ADHD and executive dysfunction in mind (see below)
 - Add tasks with a title, optional details and a priority (High / Medium / Low)
 - Check tasks off, delete them, filter by All / Pending / Completed
 - Tasks are saved on the device and survive app restarts
@@ -39,6 +44,35 @@ Built with Kotlin and Jetpack Compose (Material 3), with a dark indigo and purpl
 - **Settings** page (gear icon): floating bubble on/off, check for updates, sort order, clear completed
 - Animated **permission guide** that opens the exact settings page, so the only thing left is flipping the switch
 - **Floating bubble**: an always-on-screen icon you can drag anywhere. Tap it to open a popup where you add tasks and tick them off, without leaving the app you're in
+
+## Routines: templates for big tasks
+
+"Take a shower" is one task, but it hides a lot of small decisions. A **routine** lists them for you:
+
+1. Stand up
+2. Find clean clothes
+3. Put them where you will change
+4. Get everything ready (towel, soap, shampoo)
+5. Go to the shower
+
+- **Create once, use forever.** Open **Routines** on the home screen, tap **+**, name it, pick an icon and list the steps (reorder with the arrow, remove with the cross).
+- **Run one step at a time.** Tap **Start** and the app shows a single big instruction and a single **Done** button, with the next step as a hint. There is no list to scan and nothing to decide, which is what makes it easier to begin. The screen stays on while a routine runs, and finishing the last step plays confetti. You can go **Back** or **Skip**.
+- **Or add the steps to your task list** with **To tasks**; they land in order, with step 1 on top.
+- **Share as a file.** **Share** sends the routine as a small `.taskmaster` file through any app (chat, email, cloud drive). The other person taps **Import** on their Routines page and picks the file.
+- **Starter routines.** An empty Routines page offers *Add example routines* (shower, morning start, leave the house, quick tidy) so there is something to try straight away.
+
+The `.taskmaster` file is plain JSON, so you can write one by hand:
+
+```json
+{
+  "format": "taskmaster-routines",
+  "version": 1,
+  "routines": [
+    { "name": "Take a shower", "emoji": "🚿",
+      "steps": ["Stand up", "Find clean clothes", "Get everything ready", "Go to the shower"] }
+  ]
+}
+```
 
 ## Download the app
 
@@ -84,6 +118,8 @@ app/src/main/java/com/taskmaster/app/
   data/Task.kt             Task model, Priority, TaskFilter
   data/TaskRepository.kt   JSON persistence in SharedPreferences
   data/TaskStore.kt        shared task list used by the app and the bubble
+  data/Routine.kt          routine model and the .taskmaster JSON format
+  data/RoutineStore.kt     saved routines, import and starter examples
   overlay/OverlayService.kt   foreground service that draws the bubble and popup
   overlay/QuickTasksPopup.kt  bubble + popup UI
   overlay/OverlaySettings.kt  on/off state and bubble position
@@ -92,6 +128,10 @@ app/src/main/java/com/taskmaster/app/
   ui/UpdateUi.kt           "Check" card and "Update available" dialog
   ui/SettingsScreen.kt     settings page
   ui/PermissionGuide.kt    animated permission guide
+  ui/RoutinesScreen.kt     routines list, import, add-to-tasks, share
+  ui/RoutineEditor.kt      create / edit a routine
+  ui/RoutineRunner.kt      one-step-at-a-time run mode
+  ui/RoutineShare.kt       share a routine as a file, read an imported file
   ui/HomeWidgets.kt        progress card, search, due-date chips
   ui/Confetti.kt           confetti burst
   update/UpdateChecker.kt  checks GitHub releases, downloads and installs the APK

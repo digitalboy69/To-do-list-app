@@ -2,4 +2,6 @@
 <paths>
     <!-- Downloaded update APKs (see UpdateChecker) -->
     <cache-path name="updates" path="updates/" />
+    <!-- Routine files handed to the share sheet (see RoutineShare) -->
+    <cache-path name="shared" path="shared/" />
 </paths>
