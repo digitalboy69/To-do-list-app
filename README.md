@@ -1,6 +1,33 @@
+<div align="center">
+
+<img src="docs/screenshots/icon.png" width="112" alt="TaskMaster icon" />
+
 # TaskMaster
 
-A native Android (Kotlin + Jetpack Compose) port of the dark "TaskMaster" web prototype.
+**A fast, beautiful to-do list for Android, with a floating bubble that lets you add and tick tasks from any app.**
+
+[![Build APK](https://github.com/digitalboy69/To-do-list-app/actions/workflows/build-apk.yml/badge.svg)](https://github.com/digitalboy69/To-do-list-app/actions/workflows/build-apk.yml)
+[![Latest release](https://img.shields.io/github/v/release/digitalboy69/To-do-list-app?color=6366f1)](https://github.com/digitalboy69/To-do-list-app/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-a855f7)](LICENSE)
+![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-10b981)
+
+[**Download the APK**](https://github.com/digitalboy69/To-do-list-app/releases/latest)
+
+<img src="docs/screenshots/banner.png" alt="TaskMaster screens: home, new task, settings and floating bubble" />
+
+</div>
+
+## Screenshots
+
+> These images are design previews rendered from the app's real colours and layout, not device screenshots. Real screens may differ slightly.
+
+| Home | New task | Settings | Floating bubble |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/home.png" width="190" /> | <img src="docs/screenshots/add.png" width="190" /> | <img src="docs/screenshots/settings.png" width="190" /> | <img src="docs/screenshots/bubble.png" width="190" /> |
+
+Built with Kotlin and Jetpack Compose (Material 3), with a dark indigo and purple look.
+
+## Features
 
 - Add tasks with a title, optional details and a priority (High / Medium / Low)
 - Check tasks off, delete them, filter by All / Pending / Completed
@@ -71,6 +98,10 @@ app/src/main/java/com/taskmaster/app/
   ui/TaskApp.kt            all screens and components
   ui/theme/Theme.kt        colors, gradient, theme
 ```
+
+## License
+
+Released under the [MIT License](LICENSE). See [CONTRIBUTING.md](CONTRIBUTING.md) if you want to help.
 
 ## Notes
 
