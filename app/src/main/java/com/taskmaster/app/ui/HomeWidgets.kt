@@ -1,5 +1,6 @@
 package com.taskmaster.app.ui
 
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.animation.core.rememberInfiniteTransition
