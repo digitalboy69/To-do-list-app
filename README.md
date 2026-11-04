@@ -37,6 +37,7 @@ Built with Kotlin and Jetpack Compose (Material 3), with a dark indigo and purpl
 
 ## Features
 
+- **Smooth motion everywhere**: pages slide over the home screen with a depth effect, cards pop in one after another, every button squeezes with a springy press, a soft colour glow drifts behind the home screen, and the popup tabs share one sliding pill
 - **Brain dump**: capture any thought in a second, from anywhere. Every note is stamped with its exact date and time, auto-sorted into a category, searchable, pinnable and can become a task
 - **Routines (templates)**: turn a big task into a sequence of small steps, save it once, and use it again and again. Built with ADHD and executive dysfunction in mind (see below)
 - Add tasks with a title, optional details and a priority (High / Medium / Low)

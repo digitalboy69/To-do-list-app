@@ -65,10 +65,10 @@ private fun RowScope.ShortcutCard(emoji: String, title: String, subtitle: String
     Row(
         modifier = Modifier
             .weight(1f)
+            .bounceClick(pressedScale = 0.95f, onClick = onClick)
             .clip(shape)
             .background(SurfaceCard)
-            .border(1.dp, BorderColor, shape)
-            .clickable(onClick = onClick)
+            .border(1.dp, CardBorderBrush, shape)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

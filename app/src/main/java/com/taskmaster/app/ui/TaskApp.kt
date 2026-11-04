@@ -186,6 +186,15 @@ fun TaskApp(vm: TaskViewModel = viewModel(), dumpRequest: Int = 0) {
         animationSpec = tween(400),
         label = "push"
     )
+    // Full-screen pages (settings, routines, brain dump...) also push the home screen back,
+    // so each page feels like it sits on top of it.
+    val pageOpen = showSettings || showRoutines || showDump ||
+        editorId.isNotEmpty() || runningId.isNotEmpty()
+    val pageDepth by animateFloatAsState(
+        targetValue = if (pageOpen) 1f else 0f,
+        animationSpec = tween(380, easing = FastOutSlowInEasing),
+        label = "pageDepth"
+    )
 
     Box(
         modifier = Modifier
@@ -196,16 +205,19 @@ fun TaskApp(vm: TaskViewModel = viewModel(), dumpRequest: Int = 0) {
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    val s = 1f - 0.08f * push
+                    val s = 1f - 0.08f * push - 0.05f * pageDepth
                     scaleX = s
                     scaleY = s
                     translationY = 10.dp.toPx() * push
-                    alpha = 1f - 0.6f * push
+                    alpha = 1f - 0.6f * push - 0.5f * pageDepth
+                    translationX = -22.dp.toPx() * pageDepth
                     transformOrigin = TransformOrigin(0.5f, 0f)
                 },
             shape = RoundedCornerShape((30f * push).dp),
             color = SurfaceMain
         ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+            AmbientBackground(Modifier.fillMaxSize())
             MainScreen(
                 vm = vm,
                 onAddClick = { showSheet = true },
@@ -216,6 +228,7 @@ fun TaskApp(vm: TaskViewModel = viewModel(), dumpRequest: Int = 0) {
                 noteCount = noteStore.notes.size,
                 onDumpClick = { showDump = true }
             )
+            }
         }
 
         if (sheetOpen) {
@@ -238,16 +251,16 @@ fun TaskApp(vm: TaskViewModel = viewModel(), dumpRequest: Int = 0) {
 
         AnimatedVisibility(
             visible = showSettings,
-            enter = slideInHorizontally(tween(320)) { it } + fadeIn(tween(320)),
-            exit = slideOutHorizontally(tween(260)) { it } + fadeOut(tween(260))
+            enter = PageEnter,
+            exit = PageExit
         ) {
             SettingsScreen(vm = vm, updates = updates, onBack = { showSettings = false })
         }
 
         AnimatedVisibility(
             visible = showRoutines,
-            enter = slideInHorizontally(tween(320)) { it } + fadeIn(tween(320)),
-            exit = slideOutHorizontally(tween(260)) { it } + fadeOut(tween(260))
+            enter = PageEnter,
+            exit = PageExit
         ) {
             RoutinesScreen(
                 store = routineStore,
@@ -261,8 +274,8 @@ fun TaskApp(vm: TaskViewModel = viewModel(), dumpRequest: Int = 0) {
 
         AnimatedVisibility(
             visible = showDump,
-            enter = slideInHorizontally(tween(320)) { it } + fadeIn(tween(320)),
-            exit = slideOutHorizontally(tween(260)) { it } + fadeOut(tween(260))
+            enter = PageEnter,
+            exit = PageExit
         ) {
             BrainDumpScreen(
                 notes = noteStore,
@@ -342,14 +355,20 @@ private fun MainScreen(
         AnimatedVisibility(visible = searchOpen) {
             SearchField(query = vm.query, onChange = vm::updateQuery)
         }
-        ProgressCard(done = vm.tasks.count { it.completed }, total = vm.tasks.size)
-        HomeShortcuts(
-            noteCount = noteCount,
-            routineCount = routineCount,
-            onDumpClick = onDumpClick,
-            onRoutinesClick = onRoutinesClick
-        )
-        Filters(selected = vm.filter, onSelect = vm::selectFilter)
+        Box(modifier = Modifier.popIn(1)) {
+            ProgressCard(done = vm.tasks.count { it.completed }, total = vm.tasks.size)
+        }
+        Box(modifier = Modifier.popIn(2)) {
+            HomeShortcuts(
+                noteCount = noteCount,
+                routineCount = routineCount,
+                onDumpClick = onDumpClick,
+                onRoutinesClick = onRoutinesClick
+            )
+        }
+        Box(modifier = Modifier.popIn(3)) {
+            Filters(selected = vm.filter, onSelect = vm::selectFilter)
+        }
         TaskList(
             tasks = vm.visibleTasks,
             searching = vm.query.isNotBlank(),
@@ -368,11 +387,20 @@ private fun Header(
     onAddClick: () -> Unit
 ) {
     val today = remember {
-        LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.US))
+        val hour = java.time.LocalTime.now().hour
+        val greeting = when {
+            hour < 5 -> "Late night"
+            hour < 12 -> "Good morning"
+            hour < 17 -> "Good afternoon"
+            else -> "Good evening"
+        }
+        greeting + "  \u00B7  " +
+            LocalDate.now().format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.US))
     }
 
     Row(
         modifier = Modifier
+            .popIn(0)
             .fillMaxWidth()
             .padding(start = 25.dp, end = 25.dp, top = 24.dp, bottom = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -416,11 +444,11 @@ private fun Header(
             val shape = RoundedCornerShape(16.dp)
             Box(
                 modifier = Modifier
+                    .bounceClick(pressedScale = 0.88f, onClick = onAddClick)
                     .size(50.dp)
                     .shadow(14.dp, shape, ambientColor = Primary, spotColor = Primary)
                     .clip(shape)
-                    .background(PrimaryGradient)
-                    .clickable(onClick = onAddClick),
+                    .background(PrimaryGradient),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -449,11 +477,11 @@ private fun HeaderIconButton(
     )
     Box(
         modifier = Modifier
+            .bounceClick(pressedScale = 0.88f, onClick = onClick)
             .size(44.dp)
             .clip(shape)
             .background(SurfaceCard)
-            .border(1.dp, BorderColor, shape)
-            .clickable(onClick = onClick),
+            .border(1.dp, CardBorderBrush, shape),
         contentAlignment = Alignment.Center
     ) {
         Icon(
@@ -496,9 +524,9 @@ private fun FilterTab(label: String, selected: Boolean, onClick: () -> Unit) {
         modifier = Modifier
             // Size the tab to its label, so the underline (fillMaxWidth) matches the text
             // instead of stretching across the row and pushing the other tabs off screen.
+            .bounceClick(pressedScale = 0.92f, onClick = onClick)
             .width(IntrinsicSize.Max)
             .clip(RoundedCornerShape(4.dp))
-            .clickable(onClick = onClick)
     ) {
         Text(
             text = label,
@@ -654,11 +682,11 @@ private fun TaskItem(
 
     Row(
         modifier = modifier
+            .bounceClick(pressedScale = 0.97f, onClick = onEdit)
             .fillMaxWidth()
             .clip(cardShape)
             .background(SurfaceCard)
-            .border(1.dp, BorderColor, cardShape)
-            .clickable(onClick = onEdit)
+            .border(1.dp, CardBorderBrush, cardShape)
             .padding(20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -722,10 +750,10 @@ private fun TaskItem(
 
         Box(
             modifier = Modifier
+                .bounceClick(pressedScale = 0.8f, onClick = onDelete)
                 .size(32.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(HighPri.copy(alpha = 0.1f))
-                .clickable(onClick = onDelete),
+                .background(HighPri.copy(alpha = 0.1f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(

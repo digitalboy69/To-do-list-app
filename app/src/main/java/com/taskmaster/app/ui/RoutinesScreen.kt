@@ -23,7 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -188,8 +188,9 @@ fun RoutinesScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(routines, key = { it.id }) { routine ->
+                    itemsIndexed(routines, key = { _, r -> r.id }) { index, routine ->
                         RoutineCard(
+                            modifier = Modifier.popIn(index),
                             routine = routine,
                             onEdit = { onEdit(routine) },
                             onStart = { onStart(routine) },
@@ -271,14 +272,14 @@ internal fun BigButton(text: String, gradient: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(18.dp)
     Box(
         modifier = Modifier
+            .bounceClick(pressedScale = 0.96f, onClick = onClick)
             .fillMaxWidth()
             .height(54.dp)
             .clip(shape)
             .then(
                 if (gradient) Modifier.background(PrimaryGradient)
                 else Modifier.background(SurfaceCard).border(1.dp, BorderColor, shape)
-            )
-            .clickable(onClick = onClick),
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -292,6 +293,7 @@ internal fun BigButton(text: String, gradient: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun RoutineCard(
+    modifier: Modifier = Modifier,
     routine: Routine,
     onEdit: () -> Unit,
     onStart: () -> Unit,
@@ -300,12 +302,12 @@ private fun RoutineCard(
 ) {
     val shape = RoundedCornerShape(22.dp)
     Column(
-        modifier = Modifier
+        modifier = modifier
+            .bounceClick(pressedScale = 0.98f, onClick = onEdit)
             .fillMaxWidth()
             .clip(shape)
             .background(SurfaceCard)
-            .border(1.dp, BorderColor, shape)
-            .clickable(onClick = onEdit)
+            .border(1.dp, CardBorderBrush, shape)
             .padding(18.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -369,13 +371,13 @@ private fun RowScope.CardAction(text: String, primary: Boolean, weight: Float, o
     Box(
         modifier = Modifier
             .weight(weight)
+            .bounceClick(pressedScale = 0.92f, onClick = onClick)
             .height(42.dp)
             .clip(shape)
             .then(
                 if (primary) Modifier.background(PrimaryGradient)
                 else Modifier.background(SurfaceInput).border(1.dp, BorderColor, shape)
-            )
-            .clickable(onClick = onClick),
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(

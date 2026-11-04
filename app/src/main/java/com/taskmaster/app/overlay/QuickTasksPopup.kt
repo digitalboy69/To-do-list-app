@@ -1,5 +1,8 @@
 package com.taskmaster.app.overlay
 
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -231,46 +234,67 @@ fun QuickPopup(
             Spacer(Modifier.height(14.dp))
 
             val tabsShape = RoundedCornerShape(16.dp)
-            Row(
+            val pill by animateFloatAsState(
+                targetValue = if (tab == PopupTab.DUMP) 1f else 0f,
+                animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow),
+                label = "tabPill"
+            )
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(tabsShape)
                     .background(SurfaceInput)
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(4.dp)
             ) {
-                PopupTabButton(
-                    label = "Tasks",
-                    count = pending,
-                    selected = tab == PopupTab.TASKS,
-                    onClick = {
-                        tab = PopupTab.TASKS
-                        onTabChange(PopupTab.TASKS)
-                    }
+                // One gradient pill slides between the tabs.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.5f)
+                        .height(42.dp)
+                        .graphicsLayer { translationX = size.width * pill }
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(PrimaryGradient)
                 )
-                PopupTabButton(
-                    label = "Brain dump",
-                    count = notes.notes.size,
-                    selected = tab == PopupTab.DUMP,
-                    onClick = {
-                        tab = PopupTab.DUMP
-                        onTabChange(PopupTab.DUMP)
-                    }
-                )
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    PopupTabButton(
+                        label = "Tasks",
+                        count = pending,
+                        selected = tab == PopupTab.TASKS,
+                        onClick = {
+                            tab = PopupTab.TASKS
+                            onTabChange(PopupTab.TASKS)
+                        }
+                    )
+                    PopupTabButton(
+                        label = "Brain dump",
+                        count = notes.notes.size,
+                        selected = tab == PopupTab.DUMP,
+                        onClick = {
+                            tab = PopupTab.DUMP
+                            onTabChange(PopupTab.DUMP)
+                        }
+                    )
+                }
             }
 
             Spacer(Modifier.height(14.dp))
 
             Box(modifier = Modifier.weight(1f)) {
-                if (tab == PopupTab.TASKS) {
-                    TasksTab(store = tasks)
-                } else {
-                    BrainDumpPanel(
-                        notes = notes,
-                        tasks = tasks,
-                        autoFocus = true,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                Crossfade(
+                    targetState = tab,
+                    animationSpec = tween(220),
+                    label = "popupTab"
+                ) { current ->
+                    if (current == PopupTab.TASKS) {
+                        TasksTab(store = tasks)
+                    } else {
+                        BrainDumpPanel(
+                            notes = notes,
+                            tasks = tasks,
+                            autoFocus = true,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
 
@@ -306,7 +330,6 @@ private fun RowScope.PopupTabButton(
             .weight(1f)
             .height(42.dp)
             .clip(shape)
-            .then(if (selected) Modifier.background(PrimaryGradient) else Modifier)
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center

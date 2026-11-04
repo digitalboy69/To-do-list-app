@@ -1,5 +1,15 @@
 package com.taskmaster.app.ui
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -208,20 +218,40 @@ fun RoutineRunner(routine: Routine, onClose: () -> Unit) {
 
 @Composable
 private fun StepCard(index: Int, steps: List<String>) {
+    val pulse by rememberInfiniteTransition(label = "stepRing").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1800, easing = LinearEasing), RepeatMode.Restart),
+        label = "stepRingValue"
+    )
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(PrimaryGradient),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("${index + 1}", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Box(contentAlignment = Alignment.Center) {
+            // A ring that keeps rippling outwards, a gentle "this is the one" cue.
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .graphicsLayer {
+                        val scale = 1f + 0.7f * pulse
+                        scaleX = scale
+                        scaleY = scale
+                        alpha = 0.55f * (1f - pulse)
+                    }
+                    .border(2.dp, PrimaryLight, CircleShape)
+            )
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(PrimaryGradient),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("${index + 1}", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            }
         }
         Spacer(Modifier.height(28.dp))
         Text(
@@ -247,11 +277,23 @@ private fun StepCard(index: Int, steps: List<String>) {
 
 @Composable
 private fun FinishedCard(routine: Routine) {
+    val pop = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        pop.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessLow))
+    }
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("🎉", fontSize = 72.sp)
+        Text(
+            text = "🎉",
+            fontSize = 72.sp,
+            modifier = Modifier.graphicsLayer {
+                scaleX = pop.value
+                scaleY = pop.value
+                rotationZ = (1f - pop.value) * -30f
+            }
+        )
         Spacer(Modifier.height(20.dp))
         Text(
             text = "You did it!",

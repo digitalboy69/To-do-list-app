@@ -1,5 +1,6 @@
 package com.taskmaster.app.ui
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,7 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -134,7 +135,7 @@ fun BrainDumpPanel(
                     .fillMaxWidth()
                     .clip(shape)
                     .background(SurfaceCard)
-                    .border(1.dp, BorderColor, shape)
+                    .border(1.dp, CardBorderBrush, shape)
                     .padding(14.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -176,13 +177,17 @@ fun BrainDumpPanel(
                     val saveShape = RoundedCornerShape(14.dp)
                     Box(
                         modifier = Modifier
+                            .bounceClick(
+                                pressedScale = 0.92f,
+                                enabled = text.isNotBlank(),
+                                onClick = { save() }
+                            )
                             .height(46.dp)
                             .clip(saveShape)
                             .then(
                                 if (text.isBlank()) Modifier.background(SurfaceInput)
                                 else Modifier.background(PrimaryGradient)
                             )
-                            .clickable(enabled = text.isNotBlank()) { save() }
                             .padding(horizontal = 24.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -275,7 +280,7 @@ fun BrainDumpPanel(
                 )
             }
         } else {
-            items(rows, key = { it.key }) { item ->
+            itemsIndexed(rows, key = { _, r -> r.key }) { index, item ->
                 when (item) {
                     is DumpItem.Header -> Text(
                         text = item.label.uppercase(),
@@ -287,6 +292,7 @@ fun BrainDumpPanel(
                     )
 
                     is DumpItem.Entry -> NoteRow(
+                        modifier = Modifier.popIn(index),
                         note = item.note,
                         onPin = { notes.togglePin(item.note.id) },
                         onTask = { notes.toTask(item.note.id, tasks) },
@@ -344,10 +350,10 @@ private fun CategoryChips(selected: NoteCategory, onSelect: (NoteCategory) -> Un
             val shape = RoundedCornerShape(12.dp)
             Row(
                 modifier = Modifier
+                    .bounceClick(pressedScale = 0.92f, onClick = { onSelect(c) })
                     .clip(shape)
                     .background(if (on) color.copy(alpha = 0.22f) else SurfaceInput)
                     .border(1.dp, if (on) color else BorderColor, shape)
-                    .clickable { onSelect(c) }
                     .padding(horizontal = 11.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -374,16 +380,17 @@ private fun FilterPill(label: String, color: Color, selected: Boolean, onClick: 
         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
         maxLines = 1,
         modifier = Modifier
+            .bounceClick(pressedScale = 0.92f, onClick = onClick)
             .clip(shape)
             .background(if (selected) color.copy(alpha = 0.25f) else SurfaceCard)
             .border(1.dp, if (selected) color else BorderColor, shape)
-            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 7.dp)
     )
 }
 
 @Composable
 private fun NoteRow(
+    modifier: Modifier = Modifier,
     note: Note,
     onPin: () -> Unit,
     onTask: () -> Unit,
@@ -403,12 +410,13 @@ private fun NoteRow(
 
     val shape = RoundedCornerShape(18.dp)
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
+            .animateContentSize()
             .clip(shape)
             .background(SurfaceCard)
             .drawBehind { drawRect(accent, size = Size(4.dp.toPx(), size.height)) }
-            .border(1.dp, BorderColor, shape)
+            .border(1.dp, CardBorderBrush, shape)
             .padding(start = 18.dp, end = 14.dp, top = 12.dp, bottom = 12.dp)
     ) {
         Row(verticalAlignment = Alignment.Top) {
@@ -496,10 +504,10 @@ private fun RowScope.NotePill(
     Box(
         modifier = Modifier
             .weight(1f, fill = false)
+            .bounceClick(pressedScale = 0.9f, enabled = enabled, onClick = onClick)
             .clip(shape)
             .background(if (filled) color.copy(alpha = 0.2f) else SurfaceInput)
             .border(1.dp, if (filled) color else BorderColor, shape)
-            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {

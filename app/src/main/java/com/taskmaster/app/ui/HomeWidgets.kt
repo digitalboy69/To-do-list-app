@@ -1,5 +1,11 @@
 package com.taskmaster.app.ui
 
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -52,6 +58,13 @@ internal fun ProgressCard(done: Int, total: Int) {
         label = "progress"
     )
     val shape = RoundedCornerShape(20.dp)
+    // A soft highlight keeps sliding across the filled part of the bar.
+    val sweep by rememberInfiniteTransition(label = "barSweep").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart),
+        label = "barSweepValue"
+    )
 
     Column(
         modifier = Modifier
@@ -59,7 +72,7 @@ internal fun ProgressCard(done: Int, total: Int) {
             .padding(start = 25.dp, end = 25.dp, bottom = 6.dp)
             .clip(shape)
             .background(SurfaceCard)
-            .border(1.dp, BorderColor, shape)
+            .border(1.dp, CardBorderBrush, shape)
             .padding(horizontal = 18.dp, vertical = 14.dp)
     ) {
         Row(
@@ -98,6 +111,17 @@ internal fun ProgressCard(done: Int, total: Int) {
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(4.dp))
                     .background(PrimaryGradient)
+                    .drawBehind {
+                        val band = size.width * 0.35f
+                        val start = (size.width + band) * sweep - band
+                        drawRect(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.35f), Color.Transparent),
+                                startX = start,
+                                endX = start + band
+                            )
+                        )
+                    }
             )
         }
     }
